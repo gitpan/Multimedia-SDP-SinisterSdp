@@ -43,7 +43,7 @@ BEGIN {
 	use Exporter;
 	use DynaLoader;
 
-	$VERSION = '0.37';
+	$VERSION = '0.45';
 
 	push(@ISA, qw(Exporter DynaLoader));
 
@@ -85,18 +85,12 @@ set_non_fatal_error_handler(
 
 package Multimedia::SDP::Parser;
 
-@Multimedia::SDP::Parser::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_parser;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_parser;
 }
 
 
@@ -235,21 +229,6 @@ sub current_field { return shift->get_current_field }
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -260,18 +239,12 @@ sub DESTROY
 
 package Multimedia::SDP::Generator;
 
-@Multimedia::SDP::Generator::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_generator;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_generator;
 }
 
 
@@ -626,21 +599,6 @@ sub save_output { return shift->save_generated_output(@_) }
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -651,18 +609,12 @@ sub DESTROY
 
 package Multimedia::SDP::Description;
 
-@Multimedia::SDP::Description::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_description;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_description;
 }
 
 
@@ -757,21 +709,6 @@ sub output_to_file
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -782,18 +719,12 @@ sub DESTROY
 
 package Multimedia::SDP::Owner;
 
-@Multimedia::SDP::Owner::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_owner;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_owner;
 }
 
 
@@ -908,21 +839,6 @@ sub address_type
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -933,18 +849,12 @@ sub DESTROY
 
 package Multimedia::SDP::EmailContact;
 
-@Multimedia::SDP::EmailContact::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_email_contact;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_email_contact;
 }
 
 
@@ -987,21 +897,6 @@ sub name
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -1012,18 +907,12 @@ sub DESTROY
 
 package Multimedia::SDP::PhoneContact;
 
-@Multimedia::SDP::PhoneContact::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_phone_contact;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_phone_contact;
 }
 
 
@@ -1066,21 +955,6 @@ sub name
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -1091,18 +965,12 @@ sub DESTROY
 
 package Multimedia::SDP::Connection;
 
-@Multimedia::SDP::Connection::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_connection;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_connection;
 }
 
 
@@ -1199,21 +1067,6 @@ sub total_addresses
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -1224,18 +1077,12 @@ sub DESTROY
 
 package Multimedia::SDP::Bandwidth;
 
-@Multimedia::SDP::Bandwidth::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_bandwidth;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_bandwidth;
 }
 
 
@@ -1278,21 +1125,6 @@ sub value
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -1303,18 +1135,12 @@ sub DESTROY
 
 package Multimedia::SDP::SessionPlayTime;
 
-@Multimedia::SDP::SessionPlayTime::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_session_play_time;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_session_play_time;
 }
 
 
@@ -1357,21 +1183,6 @@ sub end_time
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -1382,18 +1193,12 @@ sub DESTROY
 
 package Multimedia::SDP::RepeatTime;
 
-@Multimedia::SDP::RepeatTime::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_repeat_time;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_repeat_time;
 }
 
 
@@ -1453,20 +1258,6 @@ sub repeat_offsets
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
 
 
 
@@ -1478,18 +1269,12 @@ sub DESTROY
 
 package Multimedia::SDP::ZoneAdjustment;
 
-@Multimedia::SDP::ZoneAdjustment::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_zone_adjustment;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_zone_adjustment;
 }
 
 
@@ -1532,21 +1317,6 @@ sub offset
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -1557,18 +1327,12 @@ sub DESTROY
 
 package Multimedia::SDP::Encryption;
 
-@Multimedia::SDP::Encryption::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_encryption;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_encryption;
 }
 
 
@@ -1611,21 +1375,6 @@ sub key
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -1636,18 +1385,12 @@ sub DESTROY
 
 package Multimedia::SDP::Attribute;
 
-@Multimedia::SDP::Attribute::ISA = 'Multimedia::SDP::SinisterSdp::Object';
-
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_attribute;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_attribute;
 }
 
 
@@ -1690,21 +1433,6 @@ sub value
 
 
 
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -1715,18 +1443,17 @@ sub DESTROY
 
 package Multimedia::SDP::MediaDescription;
 
-@Multimedia::SDP::MediaDescription::ISA ='Multimedia::SDP::SinisterSdp::Object';
+@Multimedia::SDP::MediaBandwidth::ISA  = 'Multimedia::SDP::MediaDescription';
+@Multimedia::SDP::MediaConnection::ISA = 'Multimedia::SDP::MediaDescription';
+@Multimedia::SDP::MediaEncryption::ISA = 'Multimedia::SDP::MediaDescription';
+@Multimedia::SDP::MediaAttribute::ISA  = 'Multimedia::SDP::MediaDescription';
 
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	my $self = $class->new_media_description;
-
-	$self->_register_for_cleanup;
-
-	return $self;
+	return $class->new_media_description;
 }
 
 
@@ -1837,73 +1564,16 @@ sub media_information
 	}
 }
 
-
-
-
-sub DESTROY
-{
-	my $self = shift;
-
-	if ($self->_needs_cleanup)
-	{
-		$self->_unregister_for_cleanup;
-		$self->destroy_parser;
-	}
-}
-
-
-
-
-
-
-
-
-package Multimedia::SDP::SinisterSdp::Object;
-
-# hash storing the stringified references to objects that need to be
-# cleaned up via a destory_*() method:
-use vars '%OBJECTS_NEEDING_CLEANUP';
-%OBJECTS_NEEDING_CLEANUP = ();
-
-sub _register_for_cleanup
-{
-	my $reference = shift;
-
-	$OBJECTS_NEEDING_CLEANUP{$reference} = 1;
-}
-
-
-
-
-
-sub _needs_cleanup
-{
-	my $reference = shift;
-
-	return 1 if (exists $OBJECTS_NEEDING_CLEANUP{$reference}
-			and $OBJECTS_NEEDING_CLEANUP{$reference});
-}
-
-
-
-
-
-sub _unregister_for_cleanup
-{
-	my $reference = shift;
-
-	delete $OBJECTS_NEEDING_CLEANUP{$reference};
-}
-
 1;
 
 __END__
 
 =head1 BUGS
 
-Bugs in this package can be reported and monitored using CPAN's request tracker.
+Bugs in this package can be reported and monitored using CPAN's request
+tracker: http://rt.cpan.org.
 
-You can also email me directly via
+You can also email me directly:
 <william_g_davis at users dot sourceforge dot net>.
 
 =head1 COPYRIGHT

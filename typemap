@@ -1,21 +1,20 @@
 TYPEMAP
-const char *			T_PV
-const unsigned long *		T_AVREF
-SDP_Attribute *		O_OBJECT
-SDP_Bandwidth *		O_OBJECT
-SDP_Connection *		O_OBJECT
-SDP_Description *		O_OBJECT
-SDP_EmailContact *		O_OBJECT
-SDP_Encryption *		O_OBJECT
-SDP_Error		T_UV
-SDP_Generator *		O_OBJECT
-SDP_MediaDescription *		O_OBJECT
-SDP_Owner *		O_OBJECT
-SDP_Parser *		O_OBJECT
-SDP_PhoneContact *		O_OBJECT
-SDP_RepeatTime *		O_OBJECT
-SDP_SessionPlayTime *		O_OBJECT
-SDP_ZoneAdjustment *		O_OBJECT
+const char *            T_PV
+SDP_Attribute *         O_OBJECT
+SDP_Bandwidth *         O_OBJECT
+SDP_Connection *        O_OBJECT
+SDP_Description *       O_OBJECT
+SDP_EmailContact *      O_OBJECT
+SDP_Encryption *        O_OBJECT
+SDP_Error               T_UV
+SDP_Generator *         O_OBJECT
+SDP_MediaDescription *  O_OBJECT
+SDP_Owner *             O_OBJECT
+SDP_Parser *            O_OBJECT
+SDP_PhoneContact *      O_OBJECT
+SDP_RepeatTime *        O_OBJECT
+SDP_SessionPlayTime *   O_OBJECT
+SDP_ZoneAdjustment *    O_OBJECT
 
 
 

@@ -25,12 +25,15 @@ Multimedia::SDP - The Session Description Protocol parser and generator classes
 
 =head1 DESCRIPTION
 
-This library provides classes for parsing and generating Session Description
-Protocol session descriptions.
+This library provides classes for parsing, manipulating, and generating Session
+Description Protocol session descriptions.
 
-It links to a C library called SinisterSdp that you must have installed.
+The classes in this distribution all link to a to a C library called
+SinisterSdp. You must have this installed to use them. See the "README" file
+for installation instructions.
 
-To get started, see L<Multimedia::SDP::Parser|Multimedia::SDP::Parser> and
+Once you have the library installed and the Perl modules in place, to get
+started, see L<Multimedia::SDP::Parser|Multimedia::SDP::Parser> and
 L<Multimedia::SDP::Generator|Multimedia::SDP::Generator> for usage of each.
 
 =cut
@@ -43,7 +46,8 @@ use base 'Exporter';
 use Multimedia::SDP::Parser;
 use Multimedia::SDP::Generator;
 
-$VERSION = '0.40';
+# interface version:
+$VERSION = '0.50';
 
 @EXPORT = (
 	@Multimedia::SDP::Parser::EXPORT
@@ -64,9 +68,10 @@ __END__
 
 =head1 BUGS
 
-Bugs in this package can be reported and monitored using CPAN's request tracker.
+Bugs in this package can be reported and monitored using CPAN's request
+tracker: http://rt.cpan.org.
 
-You can also email me directly via
+You can also email me directly:
 <william_g_davis at users dot sourceforge dot net>.
 
 =head1 COPYRIGHT

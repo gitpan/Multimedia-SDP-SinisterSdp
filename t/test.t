@@ -1,16 +1,13 @@
 use strict;
 use warnings;
 use Test;
-use Devel::Peek;
-
-use lib qw(.. ../blib);
 
 BEGIN { plan tests => 22 }
 
-use Multimedia::SDP::SinisterSdp;
+use Multimedia::SDP::Parser;
 ok(1);
 
-my $parser = Multimedia::SDP::Parser->new_parser();
+my $parser = new Multimedia::SDP::Parser;
 ok(UNIVERSAL::isa($parser, 'Multimedia::SDP::Parser'));
 
 my $description = $parser->parse_file('./t/test.sdp');

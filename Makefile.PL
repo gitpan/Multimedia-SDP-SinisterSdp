@@ -8,6 +8,7 @@ use Getopt::Long;
 use Text::Wrap;
 use Text::ParseWords;
 
+# the version of the C library we need:
 use constant SINISTERSDP_VERSION_REQUIRED => 0.70;
 
 
@@ -57,28 +58,27 @@ unless (UserHasUpToDateSinisterSdp())
 			"and use that to install SinisterSdp? Yes or no?",
 			'yes'
 		);
-		if (IsYes($answer))
-		{
-			InstallModule('Net::FTP') or Quit();
-		}
+		Quit('Install Net::FTP from www.cpan.org and try again.')
+			unless IsYes($answer);
+
+		# install it:
+		InstallModule('Net::FTP')
+			or Quit("Couldn't install module Net::FTP: $!\n");
+		PromptUser('Installed module Net::FTP.');
 
 		# ok, try it again:
 		eval {
 			require Net::FTP;
 			Net::FTP->import;
 		};
-
-		if ($@)
-		{
-			Quit(
-				"OK, I tried to install Net::FTP, and it " .
-				"seemed to work, but just now when I tried " .
-				"to require it, it didn't work. Check to " .
-				"make sure Net::FTP is installed, and if it " .
-				"isn't, install it manually yourself, then " .
-				"try again."
-			);
-		}
+		Quit(
+			"OK, I tried to install Net::FTP, and it " .
+			"seemed to work, but just now when I tried " .
+			"to require it, it didn't work. Check to " .
+			"make sure Net::FTP is installed, and if it " .
+			"isn't, install it manually yourself, then " .
+			"try again."
+		) if $@;
 	}
 
 
@@ -89,7 +89,7 @@ unless (UserHasUpToDateSinisterSdp())
 	my $ftp = new Net::FTP ('public.planetmirror.com', Passive => 1)
 		or Quit("Couldn't connect to FTP server: $@");
 
-	# login anonymously and in passive mode:
+	# login anonymously:
 	PromptUser('Logging into FTP server...');
 	$ftp->login('anonymous', '')
 		or Quit("Couldn't login to FTP server anonymously: $@");
@@ -147,7 +147,7 @@ unless (UserHasUpToDateSinisterSdp())
 		'gzip -d'
 	);
 	my $rc = system("$decompress $file_to_download");
-	Quit("Couldn't decompress file: $!") if $rc;
+	Quit("Couldn't decompress file: $!") if ($rc != 0);
 
 	# get into the ./src dir to run the Makefile:
 	chdir(catfile('.', "SinisterSdp-$version_to_download", 'src'));
@@ -176,12 +176,12 @@ unless (UserHasUpToDateSinisterSdp())
 	# $ make install:
 	$rc = system("$make install");
 	Quit("Couldn't run \"$make install\" on the SinisterSdp Makefile: $!")
-		if $rc;
+		if ($rc != 0);
 
 	# $ make clean:
 	$rc = system("$make clean");
 	Quit("Couldn't run \"$make clean\" on the SinisterSdp Makefile: $!")
-		if $rc;
+		if ($rc != 0);
 
 
 
@@ -266,7 +266,7 @@ sub UserHasUpToDateSinisterSdp
 		require ExtUtils::Liblist;
 		ExtUtils::Liblist->import;
 
-		# XXX This doesn't work?
+		# XXX This doesn't work? At all?
 		#($sinistersdp_lib_path) =
 		#	ExtUtils::Liblist->ext('-lsinistersdp');
 	}
@@ -319,7 +319,7 @@ sub UserHasUpToDateSinisterSdp
 	Quit(
 		"Couldn't extract version info from SinisterSdp.h. " .
 		"There's something wrong with it. Sorry."
-	) unless ($version);
+	) unless $version;
 
 	# make sure the library version is up-to-date:
 	return unless ($version >= SINISTERSDP_VERSION_REQUIRED);
@@ -353,16 +353,7 @@ sub InstallModule
 		$rc = system qq|perl -MCPAN -e 'install "$module"'|;
 	}
 
-	if ($rc)
-	{
-		PromptUser("Couldn't install module \"$module\": $!\n");
-		return;
-	}
-	else
-	{
-		PromptUser("Installed module \"$module\".\n");
-		return 1;
-	}
+	return ($rc == 0) ? 1 : 0;
 }
 
 
@@ -383,8 +374,9 @@ sub RunningActivePerl
 
 sub Quit
 {
-	PromptUser(shift) if @_;
-	PromptUser("Quitting... Bye!\n");
+	my $error_message  = '';
+	   $error_message .= shift(@_) . "\n" if @_;
+	   $error_message .= "Quitting... Bye!\n";
 
-	exit;
+	die $error_message;
 }

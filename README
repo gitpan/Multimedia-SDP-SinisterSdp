@@ -3,17 +3,18 @@ Multimedia::SDP::SinisterSdp - The Perl interface to the C SinisterSdp library.
 
 1) INTRODUCTION
 
-This distribution is the Perl front end to the SinisterSdp C library. It is
-completely object oriented, and organized into two main parts: a parser class
-and a generator class.
+This Perl extension module provides a front-end to SinisterSdp, an open source
+C library for parsing and generating session descriptions.
 
-To use this module, you need
+Multimedia::SDP::SinisterSdp is organized into two main subsystems: a parser
+class and a generator class, which allow you to parse SDP descriptions into
+objects and generate them programmatically, respectively.
 
 2) INSTALLATION
 
-You'll need to instal SinisterSdp at some point. You might want to do this now
+You'll need to install SinisterSdp at some point. You might want to do this now
 on your own, or Makefile.pl can go and try to do it for you. SinisterSdp can be
-obtained from SorceForge: http://sourceforge.net/projects/sinistersdp/
+obtained from SourceForge.net: http://sourceforge.net/projects/sinistersdp/
 
 To install this module, run the following commands:
 
@@ -24,9 +25,11 @@ To install this module, run the following commands:
 
 3) GETTING STARTED
 
-One you've installed the module, run the following command for how to use it:
+One you've installed the module, run the following commands for how to use it:
 
  $ perldoc Multimedia::SDP
+ $ perldoc Multimedia::SDP::Parser
+ $ perldoc Multimedia::SDP::Generator
 
 4) COPYRIGHT
 

@@ -36,107 +36,108 @@ extern "C" {
 #endif
 
 /*
- * This is used to set one of the handlers in either the SDP_ParserGlue
- * struct below or the golbal error handler variables after it:
- */
-#define SDP_SET_SV_IN_GLUE(_sv_to_set_, _sv_) \
-	if (_sv_to_set_ == NULL)              \
-		_sv_to_set_ = newSVsv(_sv_);  \
-        else                                  \
-		SvSetSV(_sv_to_set_, _sv_);
-
-/* This is used to retrieve those handlers from the struct or globals: */
-#define SDP_GET_SV_FROM_GLUE(_sv_to_get_) \
-	((_sv_to_get_) ? newSVsv(_sv_to_get_) : &PL_sv_undef)
-
-/*
  * This macro takes an element from a SinisterSdp linked list and from it
  * returns either the first element (if the XSub is being called in scalar
  * context) or each element in the list (if the XSub is being called in list
  * context and there is more than one element in the list):
  */
-#define SDP_RETURN_LINKED_LIST_AS_ARRAY(_item_, _class_) \
-	while (_item_)                                   \
-	{                                                \
-		SV *sv;                                  \
-                                                         \
-		EXTEND(SP, 1);                           \
-		sv = sv_newmortal();                     \
-		sv_setref_pv(sv, _class_, _item_);       \
-		PUSHs(sv);                               \
-                                                         \
-		if (GIMME == G_SCALAR)                   \
-			break;                           \
-		                                         \
-		_item_ = SDP_GetNext(_item_);            \
+#define SDPXS_RETURN_LINKED_LIST_AS_ARRAY(_item_, _supporter_, _class_) \
+	while (_item_)                                                  \
+	{                                                               \
+		SV *sv;                                                 \
+                                                                        \
+		if (_supporter_)                                        \
+			SDPXS_AddDependency(_supporter_, _item_);       \
+                                                                        \
+		EXTEND(SP, 1);                                          \
+		sv = sv_newmortal();                                    \
+		sv_setref_pv(sv, _class_, _item_);                      \
+		PUSHs(sv);                                              \
+                                                                        \
+		if (GIMME == G_SCALAR)                                  \
+			break;                                          \
+		                                                        \
+		_item_ = SDP_GetNext(_item_);                           \
 	}
 
 /*
  * This macro is used to copy each SV of the same type from the incoming @_
  * stack to a C array.
  */
-#define SDP_COPY_ARRAY_FROM_STACK(_destination_, _type_, _svmac_, _total_)  \
-	do {                                                                \
-		_destination_ = NULL;                                       \
-                                                                            \
-		if (_total_)                                                \
-		{                                                           \
-			int i;                                              \
-			int sp_i;                                           \
-                                                                            \
-			_destination_ = (_type_ *) SDP_Allocate(            \
-				sizeof(_type_) * (_total_)                  \
-			);                                                  \
-			if (_destination_ == NULL)                          \
-			{                                                   \
-				SDP_RaiseFatalError(                        \
-					SDP_ERR_OUT_OF_MEMORY,              \
-					"Couldn't allocate memory to "      \
-					"copy an array from @_: %s.",       \
-					SDP_OS_ERROR_STRING                 \
-				);                                          \
-				XSRETURN_UNDEF;                             \
-			}                                                   \
-                                                                            \
-			for (                                               \
-				i = 0, sp_i = items - (_total_);            \
-				i < (_total_);                              \
-				++i, ++sp_i)                                \
-					_destination_[i] =                  \
-						(_type_) _svmac_(ST(sp_i)); \
-		}                                                           \
+#define SDPXS_COPY_ARRAY_FROM_STACK(_destination_, _type_, _svmac_, _total_)   \
+	do {                                                                   \
+		_destination_ = NULL;                                          \
+                                                                               \
+		if (_total_)                                                   \
+		{                                                              \
+			int i;                                                 \
+			int sp_i;                                              \
+			int array_i = items - (_total_);                       \
+                                                                               \
+			_destination_ = (_type_ *) SDP_Allocate(               \
+				sizeof(_type_) * (_total_)                     \
+			);                                                     \
+			if (_destination_ == NULL)                             \
+			{                                                      \
+				SDP_RaiseFatalError(                           \
+					SDP_ERR_OUT_OF_MEMORY,                 \
+					"Couldn't allocate memory to "         \
+					"copy an array from @_: %s.",          \
+					SDP_OS_ERROR_STRING                    \
+				);                                             \
+				XSRETURN_UNDEF;                                \
+			}                                                      \
+                                                                               \
+			for (i = 0, sp_i = array_i; i < (_total_); ++i,++sp_i) \
+				_destination_[i] = (_type_) _svmac_(ST(sp_i)); \
+		}                                                              \
 	} while (0)
 
 /*
  * This macro shifts objects off the stack and builds a doubly-linked list with
  * them:
  */
-#define SDP_ARRAY_TO_LINKED_LIST(_destination_, _type_, _total_)    \
-	do {                                                        \
-		_type_ *current = NULL;                             \
-		_type_ *next    = NULL;                             \
-		int i;                                              \
-                                                                    \
-		_destination_ = NULL;                               \
-		for (i = items - (_total_); i < items; ++i)         \
-		{                                                   \
-			next = (_type_ *) SvIV((SV *) SvRV(ST(i))); \
-                                                                    \
-			if (current)                                \
-			{                                           \
-				SDP_SetNext(current, next);         \
-				SDP_SetPrevious(next, current);     \
-                                                                    \
-				current = next;                     \
-			}                                           \
-			else                                        \
-			{                                           \
-				current = next;                     \
-                                                                    \
-				_destination_ = current;            \
-			}                                           \
-		}                                                   \
+#define SDPXS_ARRAY_TO_LINKED_LIST(_destination_, _type_, _total_)   \
+	do {                                                         \
+		int i;                                               \
+                                                                     \
+		memset(&(_destination_), 0, sizeof(_destination_));  \
+                                                                     \
+		for (i = items - (_total_); i < items; ++i)          \
+		{                                                    \
+			SDP_LINK_INTO_LIST(                          \
+				_destination_,                       \
+				(_type_ *) SvIV((SV *) SvRV(ST(i))), \
+				_type_                               \
+			);                                           \
+		}                                                    \
 	} while (0)
+
+/*
+ * This is used to set an SV in the SDPXS_ParserGlue struct or in those global
+ * error handling variables after it:
+ */
+#define SDPXS_SET_SV(_sv_to_set_, _sv_)      \
+	if (_sv_to_set_ == NULL)             \
+		_sv_to_set_ = newSVsv(_sv_); \
+        else                                 \
+		SvSetSV(_sv_to_set_, _sv_);
+
+/*
+ * This is used to retrieve a value from the SDPXS_ParserGlue struct or one of
+ * those global error handlers after it:
+ */
+#define SDPXS_GET_SV(_sv_to_get_) \
+	((_sv_to_get_) ? newSVsv(_sv_to_get_) : &PL_sv_undef)
+
+/*
+ * These two are used to increment and descrement the ref counts of those
+ * SV's:
+ */
+#define SDPXS_INCREMENT_REFCOUNT(_sv_) \
+	((_sv_) ? SvREFCNT_inc(_sv_) : (void) 0)
+#define SDPXS_DECREMENT_REFCOUNT(_sv_) \
+	((_sv_) ? SvREFCNT_dec(_sv_) : (void) 0)
 
 
 
@@ -185,28 +186,14 @@ typedef struct {
 
 	/* Used to control flow without return values from Perl: */
 	int halt_parsing;
-} SDP_ParserGlue;
+} SDPXS_ParserGlue;
 
-/*
- * Same thing as above. We can't register Perl subroutines as the SinisterSdp 
- * error handlers, so instead we store them here and then register functions to
- * prepare the stack and invoke them properly:
- */
-static SV *_fatal_error_handler;
-static SV *_non_fatal_error_handler;
-
-
-
-
-
-
-
-int invoke_start_handler(
+int SDPXS_InvokeStartHandler(
 	SDP_Parser *   parser,
 	void *         user_data)
 {
 	dSP;
-	SDP_ParserGlue *parser_glue = (SDP_ParserGlue *) user_data;
+	SDPXS_ParserGlue *parser_glue = (SDPXS_ParserGlue *) user_data;
 
 	ENTER;
 	SAVETMPS;
@@ -216,7 +203,7 @@ int invoke_start_handler(
 	XPUSHs(parser_glue->user_data);
 	PUTBACK;
 
-	perl_call_sv(parser_glue->start_handler, G_SCALAR);
+	perl_call_sv(parser_glue->start_handler, G_DISCARD|G_VOID);
 
 	FREETMPS;
         LEAVE;
@@ -232,17 +219,13 @@ int invoke_start_handler(
 	}
 }
 
-
-
-
-
-int invoke_start_description_handler(
+int SDPXS_InvokeStartDescriptionHandler(
 	SDP_Parser *   parser,
 	int            description_number,
 	void *         user_data)
 {
 	dSP;
-	SDP_ParserGlue *parser_glue = (SDP_ParserGlue *) user_data;
+	SDPXS_ParserGlue *parser_glue = (SDPXS_ParserGlue *) user_data;
 
 	ENTER;
 	SAVETMPS;
@@ -253,7 +236,7 @@ int invoke_start_description_handler(
 	XPUSHs(parser_glue->user_data);
 	PUTBACK;
 
-	perl_call_sv(parser_glue->start_description_handler, G_SCALAR);
+	perl_call_sv(parser_glue->start_description_handler, G_DISCARD|G_VOID);
 
 	FREETMPS;
         LEAVE;
@@ -269,18 +252,14 @@ int invoke_start_description_handler(
 	}
 }
 
-
-
-
-
-int invoke_field_handler(
+int SDPXS_InvokeFieldHandler(
 	SDP_Parser *   parser,
 	char           field_type,
 	const char *   field_value,
 	void *         user_data)
 {
 	dSP;
-	SDP_ParserGlue *parser_glue = (SDP_ParserGlue *) user_data;
+	SDPXS_ParserGlue *parser_glue = (SDPXS_ParserGlue *) user_data;
 
 	ENTER;
 	SAVETMPS;
@@ -292,7 +271,7 @@ int invoke_field_handler(
 	XPUSHs(parser_glue->user_data);
 	PUTBACK;
 
-	perl_call_sv(parser_glue->field_handler, G_SCALAR);
+	perl_call_sv(parser_glue->field_handler, G_DISCARD|G_VOID);
 
 	FREETMPS;
         LEAVE;
@@ -308,17 +287,13 @@ int invoke_field_handler(
 	}
 }
 
-
-
-
-
-int invoke_end_description_handler(
+int SDPXS_InvokeEndDescriptionHandler(
 	SDP_Parser *   parser,
 	int            description_number,
 	void *         user_data)
 {
 	dSP;
-	SDP_ParserGlue *parser_glue = (SDP_ParserGlue *) user_data;
+	SDPXS_ParserGlue *parser_glue = (SDPXS_ParserGlue *) user_data;
 
 	ENTER;
 	SAVETMPS;
@@ -329,7 +304,7 @@ int invoke_end_description_handler(
 	XPUSHs(parser_glue->user_data);
 	PUTBACK;
 
-	perl_call_sv(parser_glue->end_description_handler, G_SCALAR);
+	perl_call_sv(parser_glue->end_description_handler, G_DISCARD|G_VOID);
 
 	FREETMPS;
         LEAVE;
@@ -345,17 +320,13 @@ int invoke_end_description_handler(
 	}
 }
 
-
-
-
-
-void invoke_end_handler(
+void SDPXS_InvokeEndHandler(
 	SDP_Parser *   parser,
 	int            parser_result,
 	void *         user_data)
 {
 	dSP;
-	SDP_ParserGlue *parser_glue = (SDP_ParserGlue *) user_data;
+	SDPXS_ParserGlue *parser_glue = (SDPXS_ParserGlue *) user_data;
 
 	ENTER;
 	SAVETMPS;
@@ -366,7 +337,7 @@ void invoke_end_handler(
 	XPUSHs(parser_glue->user_data);
 	PUTBACK;
 
-	perl_call_sv(parser_glue->start_handler, G_SCALAR);
+	perl_call_sv(parser_glue->start_handler, G_DISCARD|G_VOID);
 
 	FREETMPS;
         LEAVE;
@@ -378,7 +349,15 @@ void invoke_end_handler(
 
 
 
-void invoke_fatal_error_handler(
+/*
+ * Same thing as above with SDPXS_ParserGlue. We can't register Perl
+ * subroutines as the SinisterSdp error handlers, so instead we store them here
+ * and then register functions to prepare the stack and invoke them properly:
+ */
+static SV *sdpxs_fatal_error_handler     = NULL;
+static SV *sdpxs_non_fatal_error_handler = NULL;
+
+void SDPXS_InvokeFatalErrorHandler(
 	SDP_Error      error_code,
 	const char *   error_string)
 {
@@ -392,17 +371,13 @@ void invoke_fatal_error_handler(
 	XPUSHs(sv_2mortal(newSViv(error_code)));
 	PUTBACK;
 
-	perl_call_sv(_fatal_error_handler, G_SCALAR|G_DISCARD);
+	perl_call_sv(sdpxs_fatal_error_handler, G_DISCARD|G_VOID);
 
 	FREETMPS;
 	LEAVE;
 }
 
-
-
-
-
-int invoke_non_fatal_error_handler(
+int SDPXS_InvokeNonFatalErrorHandler(
 	SDP_Error      error_code,
 	const char *   error_string)
 {
@@ -418,7 +393,9 @@ int invoke_non_fatal_error_handler(
 	XPUSHs(sv_2mortal(newSViv(error_code)));
 	PUTBACK;
 
-	scalars_returned = perl_call_sv(_non_fatal_error_handler, G_SCALAR);
+	scalars_returned = perl_call_sv(
+		sdpxs_non_fatal_error_handler, G_SCALAR
+	);
 
 	SPAGAIN;
 
@@ -430,6 +407,461 @@ int invoke_non_fatal_error_handler(
 
 	return status;
 }
+
+
+
+
+
+/*
+ * This hash stores pointers to the objects whose destruction must be delayed
+ * for a while because objects within them (objects that they manage and they
+ * are in charge of destroying) are still in use:
+ */
+static HV *sdpxs_objects_needing_cleanup = NULL;
+
+#define SDPXS_MAX_MACHINE_ADDRESS_SIZE 64
+
+static void SDPXS_RegisterForDelayedCleanup(void *address)
+{
+	char stringified_address[SDPXS_MAX_MACHINE_ADDRESS_SIZE] = "";
+
+	if (sdpxs_objects_needing_cleanup == NULL)
+		sdpxs_objects_needing_cleanup = newHV();
+
+	snprintf(
+		stringified_address, sizeof(stringified_address), "%p", address
+	);
+
+	hv_store(
+		sdpxs_objects_needing_cleanup,
+		stringified_address,
+		strlen(stringified_address),
+		newSViv(1),
+		0
+	);
+}
+
+static int SDPXS_IsCleanupPending(void *address)
+{
+	char stringified_address[SDPXS_MAX_MACHINE_ADDRESS_SIZE] = "";
+	int length;
+	SV **still_needs_cleanup;
+	int exists;
+
+	if (sdpxs_objects_needing_cleanup == NULL)
+		sdpxs_objects_needing_cleanup = newHV();
+
+	snprintf(
+		stringified_address, sizeof(stringified_address), "%p", address
+	);
+	length = strlen(stringified_address); 
+
+	/* Make sure the entry exists firsts before we check it: */
+	exists = hv_exists(
+		sdpxs_objects_needing_cleanup, stringified_address, length
+	);
+	if (!exists)
+		return 0;
+
+	/* Check the scalar: */
+	still_needs_cleanup = hv_fetch(
+		sdpxs_objects_needing_cleanup, stringified_address, length, 0
+	);
+	return SvTRUE(*still_needs_cleanup) ? 1 : 0;
+}
+
+static void SDPXS_DelayedCleanupCompleted(void *address)
+{
+	char stringified_address[SDPXS_MAX_MACHINE_ADDRESS_SIZE] = "";
+	int length;
+	SV *still_needs_cleanup;
+	int exists;
+
+	if (sdpxs_objects_needing_cleanup == NULL)
+		sdpxs_objects_needing_cleanup = newHV();
+
+	snprintf(
+		stringified_address, sizeof(stringified_address), "%p", address
+	);
+	length = strlen(stringified_address);
+
+	/* Make sure the entry exists firsts: */
+	exists = hv_exists(
+		sdpxs_objects_needing_cleanup, stringified_address, length
+	);
+	if (!exists)
+		return;
+
+	/* Delete it from the global hash: */
+	still_needs_cleanup = hv_delete(
+		sdpxs_objects_needing_cleanup, stringified_address, length, 0
+	);
+
+	SvREFCNT_dec(still_needs_cleanup);
+}
+
+
+
+
+
+/*
+ * These two hash and the routines below that operate on them form the
+ * dependency mechanism.
+ */
+
+static HV *sdpxs_active_dependents = NULL;
+static HV *sdpxs_dependencies      = NULL;
+
+void SDPXS_AddDependency(
+	void *   supporter,
+	void *   dependent)
+{
+	/* These store the supporter and dependent pointers as strings: */
+	char supporter_address[SDPXS_MAX_MACHINE_ADDRESS_SIZE] = "";
+	char dependent_address[SDPXS_MAX_MACHINE_ADDRESS_SIZE] = "";
+
+	/* The lengths of each string: */
+	int supporter_address_length, dependent_address_length;
+
+	/*
+	 * The will store a pointer to the hash that contains each object that
+	 * dependents on this supporter object and the number of references
+	 * that have been taken to them. When a dependent object gets added to
+	 * the hash, it has an initial count of 1 as its value. When
+	 * SDPXS_RemoveDependency() is called, this count gets decremented,
+	 * and if it reaches zero, then the key/value pair is removed from the
+	 * hash entirely. When the final pair is removed from this hash, the
+	 * hash itself is destroyed, and the supporter object can be destroyed
+	 * if needed:
+	 */
+	HV *dependents;
+
+	/*
+	 * This stores a pointer to a pointer to an SV that contains a
+	 * reference to the dependents hash:
+	 */
+	SV **dependents_ref;
+
+	/* Just used to store the return value of hv_exists(): */
+	int exists;
+
+
+
+	/* Initialize the hashes if we haven't done so yet: */
+	if (sdpxs_active_dependents == NULL)
+		sdpxs_active_dependents = newHV();
+	if (sdpxs_dependencies == NULL)
+		sdpxs_dependencies = newHV();
+
+	/* Get stringified versions of each pointer supplied to us: */
+	snprintf(supporter_address, sizeof(supporter_address), "%p", supporter);
+	supporter_address_length = strlen(supporter_address);
+	snprintf(dependent_address, sizeof(dependent_address), "%p", dependent);
+	dependent_address_length = strlen(dependent_address);
+
+
+
+	/*
+	 * Check the sdpxs_active_dependents hash of hashes for an entry for
+	 * this supporter, and create and store a new hash for it if there
+	 * isn't one yet:
+	 */
+	exists = hv_exists(
+		sdpxs_active_dependents,
+		supporter_address,
+		supporter_address_length
+	);
+	if (!exists)
+		hv_store(
+			sdpxs_active_dependents,
+			supporter_address,
+			supporter_address_length,
+			newRV_noinc((SV *) newHV()),
+			0
+		);
+
+
+
+	/* Get the hash reference from the hash, then dereference it: */
+	dependents_ref = hv_fetch(
+		sdpxs_active_dependents,
+		supporter_address,
+		supporter_address_length,
+		0
+	);
+	dependents = (HV *) SvRV(*dependents_ref);
+
+	/*
+	 * Now check the hash of dependents for an entry for this dependent,
+	 * and add one if it doesn't already exist, or increment it if it
+	 * already does:
+	 */
+	exists = hv_exists(
+		dependents, dependent_address, dependent_address_length
+	);
+	if (exists)
+	{
+		SV **dependent_object = hv_fetch(
+			dependents,
+			dependent_address,
+			dependent_address_length,
+			0
+		);
+
+		/* Increment it: */
+		sv_setiv(*dependent_object, SvIV(*dependent_object) + 1);
+	}
+	else
+	{
+		hv_store(
+			dependents,
+			dependent_address,
+			dependent_address_length,
+			newSViv(1),
+			0
+		);
+	}
+
+
+
+	/* Now add an entry to the supporters hash: */
+	hv_store(
+		sdpxs_dependencies,
+		dependent_address,
+		dependent_address_length,
+		newSVpvn(supporter_address, supporter_address_length),
+		0
+	);
+}
+
+int SDPXS_HasDependents(void *supporter)
+{
+	char supporter_address[SDPXS_MAX_MACHINE_ADDRESS_SIZE] = "";
+	int length;
+
+	/* Initialize the hashes if we haven't done so yet: */
+	if (sdpxs_active_dependents == NULL)
+		sdpxs_active_dependents = newHV();
+	if (sdpxs_dependencies == NULL)
+		sdpxs_dependencies = newHV();
+
+	snprintf(supporter_address, sizeof(supporter_address), "%p", supporter);
+	length = strlen(supporter_address);
+
+	if (hv_exists(sdpxs_active_dependents, supporter_address, length))
+	{
+		HV *dependents;
+		SV **dependents_ref;
+
+		/*
+		 * Dereference the hash and check to see if there are any
+		 * dependents in it:
+		 */
+		dependents_ref = hv_fetch(
+			sdpxs_active_dependents,
+			supporter_address,
+			length,
+			0
+		);
+		dependents = (HV *) SvRV(*dependents_ref);
+
+		return HvKEYS(dependents) ? 1 : 0;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+int SDPXS_IsDependent(void *dependent)
+{
+	char dependent_address[SDPXS_MAX_MACHINE_ADDRESS_SIZE] = "";
+	int dependent_address_length;
+	int exists;
+
+	/* Initialize the hashes if we haven't done so yet: */
+	if (sdpxs_active_dependents == NULL)
+		sdpxs_active_dependents = newHV();
+	if (sdpxs_dependencies == NULL)
+		sdpxs_dependencies = newHV();
+
+	snprintf(dependent_address, sizeof(dependent_address), "%p", dependent);
+	dependent_address_length = strlen(dependent_address);
+
+	exists = hv_exists(
+		sdpxs_dependencies, dependent_address, dependent_address_length
+	);
+	return exists ? 1 : 0;
+}
+
+void *SDPXS_GetSupporter(void *dependent)
+{
+	char dependent_address[SDPXS_MAX_MACHINE_ADDRESS_SIZE] = "";
+	int dependent_address_length;
+	int exists;
+
+	snprintf(dependent_address, sizeof(dependent_address), "%p", dependent);
+	dependent_address_length = strlen(dependent_address);
+
+	exists = hv_exists(
+		sdpxs_dependencies, dependent_address, dependent_address_length
+	);
+	if (exists)
+	{
+		SV **supporter;
+		void *rv;
+
+		supporter = hv_fetch(
+			sdpxs_dependencies,
+			dependent_address,
+			dependent_address_length,
+			0
+		);
+		sscanf(SvPV_nolen(*supporter), "%p", &rv);
+
+		return rv;
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
+int SDPXS_RemoveDependency(void *dependent)
+{
+	/*
+	 * This stores the supporter pointer as a string retrieved from the
+	 * dependents hash:
+	 */
+	char *supporter_address;
+
+	/* The length of the string: */
+	STRLEN supporter_address_length;
+
+	/* This stores the dependent pointer as a string: */
+	char dependent_address[SDPXS_MAX_MACHINE_ADDRESS_SIZE] = "";
+
+	/* The length of the string: */
+	int dependent_address_length;
+
+	SV *supporter;
+
+	/*
+	 * This stores a pointer to an SV pointer that contains a reference to
+	 * the dependents array:
+	 */
+	SV **dependents_ref;
+
+	/*
+	 * This gets the array containing all of the dependents for this
+	 * particular supporter from the sdpxs_active_dependents hash:
+	 */
+	HV *dependents;
+
+	/*
+	 * This stores a pointer to a pointer to an SV retrieved from the
+	 * dependents hash:
+	 */
+	SV **dependent_object;
+
+	int rv;
+
+
+
+	/* Make sure the dependent actually depends on something first: */
+	if (!SDPXS_IsDependent(dependent))
+		return 0;
+
+
+
+	/* Get stringified versions of each pointer: */
+	snprintf(dependent_address, sizeof(dependent_address), "%p", dependent);
+	dependent_address_length = strlen(dependent_address);
+	supporter = hv_delete(
+		sdpxs_dependencies,
+		dependent_address,
+		dependent_address_length,
+		0
+	);
+	supporter_address = SvPV(supporter, supporter_address_length);
+
+
+
+	/*
+	 * Get the hash of depedents for this supporter from the depedents
+	 * hash:
+	 */
+	dependents_ref = hv_fetch(
+		sdpxs_active_dependents,
+		supporter_address,
+		supporter_address_length,
+		0
+	);
+	dependents = (HV *) SvRV(*dependents_ref);
+
+	/* Decrement the reference count for this dependent: */
+	dependent_object = hv_fetch(
+		dependents,
+		dependent_address,
+		dependent_address_length,
+		0
+	);
+	sv_setiv(*dependent_object, SvIV(*dependent_object) - 1);
+
+	/* Just delete the entry all together if the count dropped to zero: */
+	if (SvIV(*dependent_object) <= 0)
+	{
+		hv_delete(
+			dependents,
+			dependent_address,
+			dependent_address_length,
+			0
+		);
+		SvREFCNT_dec(*dependent_object);
+	}
+
+	/*
+	 * Get rid of the entire hash all together if there are no more
+	 * dependents left:
+	 */
+	if (!HvKEYS(dependents))
+	{
+		void *supporter_object;
+
+		hv_undef(dependents);
+		hv_delete(
+			sdpxs_active_dependents,
+			supporter_address,
+			supporter_address_length,
+			0
+		);
+		SvREFCNT_dec(*dependents_ref);
+
+		/*
+		 * If all depedencies are gone and the supporter's cleanup was
+		 * delayed, then tell the caller to cleanup it up:
+		 */
+		sscanf(supporter_address, "%p", &supporter_object);
+	
+		rv = SDPXS_IsCleanupPending(supporter_object) ? 1 : 0;
+	}
+	else
+	{
+		rv = 0;
+	}
+
+
+
+	SvREFCNT_dec(supporter);
+
+	return rv;
+}
+
+
+
+
+
+
 
 
 
@@ -535,7 +967,7 @@ new_parser(CLASS)
 		char *CLASS
 	PREINIT:
 		SDP_Parser *parser;
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 		SV *address;
 	CODE:
 	{
@@ -543,8 +975,8 @@ new_parser(CLASS)
 		if (parser == NULL)
 			XSRETURN_UNDEF;
 
-		parser_glue = (SDP_ParserGlue *) SDP_Allocate(
-			sizeof(SDP_ParserGlue)
+		parser_glue = (SDPXS_ParserGlue *) SDP_Allocate(
+			sizeof(SDPXS_ParserGlue)
 		);
 		if (parser_glue == NULL)
 		{
@@ -552,13 +984,13 @@ new_parser(CLASS)
 			XSRETURN_UNDEF;
 		}
 
-		SDP_SetUserData(parser, (void *) parser_glue);
+		SDP_SetUserData(parser, parser_glue);
 
 		address = newSViv((int) parser);
 		RETVAL  = newRV(address);
 		sv_bless(RETVAL, gv_stashpv(CLASS, 1));
 
-		parser_glue->parser = sv_2mortal(newSVsv(RETVAL));
+		parser_glue->parser = newSVsv(RETVAL);
 	}
 	OUTPUT:
 		RETVAL
@@ -572,11 +1004,47 @@ parse(parser, string)
 	PREINIT:
 		char CLASS[] = "Multimedia::SDP::Description";
 		SDP_Description *description;
+		int is_stack_full = 0;
 	PPCODE:
 	{
 		description = SDP_Parse(parser, string);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(description, CLASS);
+		/*
+		 * Push as many description structs as we can on the stack, and
+		 * just destroy the rest:
+		 */
+		while (description)
+		{
+			if (is_stack_full)
+			{
+				SDP_Description *description_to_destroy =
+					description;
+
+				description = SDP_GetNextDescription(
+					description
+				);
+
+				SDP_DestroyDescription(
+					description_to_destroy
+				);
+			}
+			else
+			{
+				SV *sv;
+
+				EXTEND(SP, 1);
+				sv = sv_newmortal();
+				sv_setref_pv(sv, CLASS, description);
+				PUSHs(sv);
+
+				if (GIMME == G_SCALAR)
+					is_stack_full = 1;
+
+				description = SDP_GetNextDescription(
+					description
+				);
+			}
+		}
 	}
 
 
@@ -588,11 +1056,47 @@ parse_file(parser, filename)
 	PREINIT:
 		char CLASS[] = "Multimedia::SDP::Description";
 		SDP_Description *description;
+		int is_stack_full = 0;
 	PPCODE:
 	{
 		description = SDP_ParseFile(parser, filename);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(description, CLASS);
+		/*
+		 * Push as many description structs as we can on the stack, and
+		 * just destroy the rest:
+		 */
+		while (description)
+		{
+			if (is_stack_full)
+			{
+				SDP_Description *description_to_destroy =
+					description;
+
+				description = SDP_GetNextDescription(
+					description
+				);
+
+				SDP_DestroyDescription(
+					description_to_destroy
+				);
+			}
+			else
+			{
+				SV *sv;
+
+				EXTEND(SP, 1);
+				sv = sv_newmortal();
+				sv_setref_pv(sv, CLASS, description);
+				PUSHs(sv);
+
+				if (GIMME == G_SCALAR)
+					is_stack_full = 1;
+
+				description = SDP_GetNextDescription(
+					description
+				);
+			}
+		}
 	}
 
 
@@ -622,9 +1126,9 @@ event_stream_parse_file(parser, filename)
 void halt(parser)
 		SDP_Parser *parser
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
 		parser_glue->halt_parsing = 1;
 
 
@@ -634,14 +1138,14 @@ set_start_handler(parser, handler)
 		SDP_Parser *   parser
 		SV *           handler
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
 	{
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
 
-		SDP_SET_SV_IN_GLUE(parser_glue->start_handler, handler);
+		SDPXS_SET_SV(parser_glue->start_handler, handler);
 
-		SDP_SetStartHandler(parser, invoke_start_handler);
+		SDP_SetStartHandler(parser, SDPXS_InvokeStartHandler);
 	}
 
 
@@ -651,17 +1155,15 @@ set_start_description_handler(parser, handler)
 		SDP_Parser *   parser
 		SV *           handler
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
 	{
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
 
-		SDP_SET_SV_IN_GLUE(
-			parser_glue->start_description_handler, handler
-		);
+		SDPXS_SET_SV(parser_glue->start_description_handler, handler);
 
 		SDP_SetStartDescriptionHandler(
-			parser, invoke_start_description_handler
+			parser, SDPXS_InvokeStartDescriptionHandler
 		);
 	}
 
@@ -672,14 +1174,14 @@ set_field_handler(parser, handler)
 		SDP_Parser *   parser
 		SV *           handler
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
 	{
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
 
-		SDP_SET_SV_IN_GLUE(parser_glue->field_handler, handler);
+		SDPXS_SET_SV(parser_glue->field_handler, handler);
 
-		SDP_SetFieldHandler(parser, invoke_field_handler);
+		SDP_SetFieldHandler(parser, SDPXS_InvokeFieldHandler);
 	}
 
 
@@ -689,17 +1191,15 @@ set_end_description_handler(parser, handler)
 		SDP_Parser *   parser
 		SV *           handler
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
 	{
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
 
-		SDP_SET_SV_IN_GLUE(
-			parser_glue->end_description_handler, handler
-		);
+		SDPXS_SET_SV(parser_glue->end_description_handler, handler);
 
 		SDP_SetEndDescriptionHandler(
-			parser, invoke_end_description_handler
+			parser, SDPXS_InvokeEndDescriptionHandler
 		);
 	}
 
@@ -710,14 +1210,14 @@ set_end_handler(parser, handler)
 		SDP_Parser *   parser
 		SV *           handler
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
 	{
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
 
-		SDP_SET_SV_IN_GLUE(parser_glue->end_handler, handler);
+		SDPXS_SET_SV(parser_glue->end_handler, handler);
 
-		SDP_SetEndHandler(parser, invoke_end_handler);
+		SDP_SetEndHandler(parser, SDPXS_InvokeEndHandler);
 	}
 
 
@@ -726,8 +1226,11 @@ void
 set_user_data(parser, user_data)
 		SDP_Parser *   parser
 		void *         user_data
+	PREINIT:
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
-		SDP_SetUserData(parser, user_data);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
+		SDPXS_SET_SV(parser->user_data, user_data);
 
 
 
@@ -735,10 +1238,10 @@ SV *
 get_start_handler(parser)
 		SDP_Parser *parser
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
-		RETVAL = SDP_GET_SV_FROM_GLUE(parser_glue->start_handler);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
+		RETVAL = SDPXS_GET_SV(parser_glue->start_handler);
 	OUTPUT:
 		RETVAL
 
@@ -748,12 +1251,10 @@ SV *
 get_start_description_handler(parser)
 		SDP_Parser *parser
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
-		RETVAL = SDP_GET_SV_FROM_GLUE(
-			parser_glue->start_description_handler
-		);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
+		RETVAL = SDPXS_GET_SV(parser_glue->start_description_handler);
 	OUTPUT:
 		RETVAL
 
@@ -763,10 +1264,10 @@ SV *
 get_field_handler(parser)
 		SDP_Parser *parser
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
-		RETVAL = SDP_GET_SV_FROM_GLUE(parser_glue->field_handler);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
+		RETVAL = SDPXS_GET_SV(parser_glue->field_handler);
 	OUTPUT:
 		RETVAL
 
@@ -776,12 +1277,10 @@ SV *
 get_end_description_handler(parser)
 		SDP_Parser *parser
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
-		RETVAL = SDP_GET_SV_FROM_GLUE(
-			parser_glue->end_description_handler
-		);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
+		RETVAL = SDPXS_GET_SV(parser_glue->end_description_handler);
 	OUTPUT:
 		RETVAL
 
@@ -791,10 +1290,10 @@ SV *
 get_end_handler(parser)
 		SDP_Parser *parser
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
-		RETVAL = SDP_GET_SV_FROM_GLUE(parser_glue->end_handler);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
+		RETVAL = SDPXS_GET_SV(parser_glue->end_handler);
 	OUTPUT:
 		RETVAL
 
@@ -804,10 +1303,10 @@ SV *
 get_user_data(parser)
 		SDP_Parser *parser
 	PREINIT:
-		SDP_ParserGlue *parser_glue;
+		SDPXS_ParserGlue *parser_glue;
 	CODE:
-		parser_glue = (SDP_ParserGlue *) SDP_GetUserData(parser);
-		RETVAL = SDP_GET_SV_FROM_GLUE(parser_glue->user_data);
+		parser_glue = (SDPXS_ParserGlue *) SDP_GetUserData(parser);
+		RETVAL = SDPXS_GET_SV(parser_glue->user_data);
 	OUTPUT:
 		RETVAL
 
@@ -864,16 +1363,24 @@ field_encountered(parser, field_type)
 
 
 
-void
-destroy_parser(parser)
+void DESTROY_parser(parser)
 		SDP_Parser *parser
 	CODE:
 	{
-		SDP_ParserGlue *parser_glue =
-			(SDP_ParserGlue *) SDP_GetUserData(parser);
+		SDPXS_ParserGlue *parser_glue =
+			(SDPXS_ParserGlue *) SDP_GetUserData(parser);
+
+		SDPXS_DECREMENT_REFCOUNT(parser_glue->parser);
+
+		SDPXS_DECREMENT_REFCOUNT(parser_glue->start_handler);
+		SDPXS_DECREMENT_REFCOUNT(parser_glue->start_description_handler);
+		SDPXS_DECREMENT_REFCOUNT(parser_glue->field_handler);
+		SDPXS_DECREMENT_REFCOUNT(parser_glue->end_description_handler);
+		SDPXS_DECREMENT_REFCOUNT(parser_glue->end_handler);
+
+		SDPXS_DECREMENT_REFCOUNT(parser_glue->user_data);
 
 		SDP_DestroyParser(parser);
-
 		SDP_Destroy(parser_glue);
 	}
 
@@ -1150,15 +1657,24 @@ int
 gen_from_zone_adjustment_objects(generator, ...)
 		SDP_Generator *generator
 	PREINIT:
-		SDP_ZoneAdjustment *zone_adjustments;
+		SDP_LinkedList zone_adjustments;
 	CODE:
 	{
-		SDP_ARRAY_TO_LINKED_LIST(
+		SDPXS_ARRAY_TO_LINKED_LIST(
 			zone_adjustments, SDP_ZoneAdjustment, items - 1
 		);
 
 		RETVAL = SDP_GenFromZoneAdjustments(
-			generator, zone_adjustments
+			generator,
+			(SDP_ZoneAdjustment *) SDP_GetListElements(
+				zone_adjustments
+			)
+		);
+
+		SDP_DESTROY_LIST(
+			zone_adjustments,
+			SDP_ZoneAdjustment,
+			SDP_DestroyZoneAdjustment
 		);
 	}
 	OUTPUT:
@@ -1269,7 +1785,7 @@ save_generated_output(generator, filename)
 
 
 void
-destroy_generator(generator)
+DESTROY_generator(generator)
 		SDP_Generator *generator
 	CODE:
 		SDP_DestroyGenerator(generator);
@@ -1373,6 +1889,7 @@ add_email_contact(description, email_contact)
 		SDP_Description *    description
 		SDP_EmailContact *   email_contact
 	CODE:
+		SDPXS_AddDependency(description, email_contact);
 		SDP_AddEmailContact(description, email_contact);
 
 
@@ -1394,6 +1911,7 @@ add_phone_contact(description, phone_contact)
 		SDP_Description *    description
 		SDP_PhoneContact *   phone_contact
 	CODE:
+		SDPXS_AddDependency(description, phone_contact);
 		SDP_AddPhoneContact(description, phone_contact);
 
 
@@ -1449,6 +1967,7 @@ add_session_play_time(description, session_play_time)
 		SDP_Description *       description
 		SDP_SessionPlayTime *   session_play_time
 	CODE:
+		SDPXS_AddDependency(description, session_play_time);
 		SDP_AddSessionPlayTime(description, session_play_time);
 
 
@@ -1472,6 +1991,7 @@ add_zone_adjustment(description, zone_adjustment)
 		SDP_Description *      description
 		SDP_ZoneAdjustment *   zone_adjustment
 	CODE:
+		SDPXS_AddDependency(description, zone_adjustment);
 		SDP_AddZoneAdjustment(description, zone_adjustment);
 
 
@@ -1505,6 +2025,7 @@ add_attribute(description, attribute)
 		SDP_Description *   description
 		SDP_Attribute *     attribute
 	CODE:
+		SDPXS_AddDependency(description, attribute);
 		SDP_AddAttribute(description, attribute);
 
 
@@ -1526,6 +2047,7 @@ add_media_description(description, media_description)
 		SDP_Description *        description
 		SDP_MediaDescription *   media_description
 	CODE:
+		SDPXS_AddDependency(description, media_description);
 		SDP_AddMediaDescription(description, media_description);
 
 
@@ -1571,6 +2093,7 @@ get_owner(description)
 		char CLASS[] = "Multimedia::SDP::Owner";
 	CODE:
 		RETVAL = SDP_GetOwner(description);
+		SDPXS_AddDependency(description, RETVAL);
 	OUTPUT:
 		RETVAL
 
@@ -1616,7 +2139,9 @@ get_email_contacts(description)
 	{
 		email_contacts = SDP_GetEmailContacts(description);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(email_contacts, CLASS);
+		SDPXS_RETURN_LINKED_LIST_AS_ARRAY(
+			email_contacts, description, CLASS
+		);
 	}
 
 
@@ -1626,6 +2151,7 @@ remove_email_contact(description, email_contact)
 		SDP_Description *    description
 		SDP_EmailContact *   email_contact
 	CODE:
+		SDPXS_RemoveDependency(email_contact);
 		SDP_RemoveEmailContact(description, email_contact);
 
 
@@ -1640,7 +2166,9 @@ get_phone_contacts(description)
 	{
 		phone_contacts = SDP_GetPhoneContacts(description);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(phone_contacts, CLASS);
+		SDPXS_RETURN_LINKED_LIST_AS_ARRAY(
+			phone_contacts, description, CLASS
+		);
 	}
 
 
@@ -1650,6 +2178,7 @@ remove_phone_contact(description, phone_contact)
 		SDP_Description *    description
 		SDP_PhoneContact *   phone_contact
 	CODE:
+		SDPXS_RemoveDependency(phone_contact);
 		SDP_RemovePhoneContact(description, phone_contact);
 
 
@@ -1661,6 +2190,7 @@ get_connection(description)
 		char CLASS[] = "Multimedia::SDP::Connection";
 	CODE:
 		RETVAL = SDP_GetConnection(description);
+		SDPXS_AddDependency(description, RETVAL);
 	OUTPUT:
 		RETVAL
 
@@ -1673,6 +2203,7 @@ get_bandwidth(description)
 		char CLASS[] = "Multimedia::SDP::Bandwidth";
 	CODE:
 		RETVAL = SDP_GetBandwidth(description);
+		SDPXS_AddDependency(description, RETVAL);
 	OUTPUT:
 		RETVAL
 
@@ -1683,12 +2214,14 @@ get_session_play_times(description)
 		SDP_Description *description
 	PREINIT:
 		char CLASS[] = "Multimedia::SDP::SessionPlayTime";
-		SDP_SessionPlayTime *session_play_time;
+		SDP_SessionPlayTime *session_play_times;
 	PPCODE:
 	{
-		session_play_time = SDP_GetSessionPlayTimes(description);
+		session_play_times = SDP_GetSessionPlayTimes(description);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(session_play_time, CLASS);
+		SDPXS_RETURN_LINKED_LIST_AS_ARRAY(
+			session_play_times, description, CLASS
+		);
 	}
 
 
@@ -1698,6 +2231,7 @@ remove_session_play_time(description, session_play_time)
 		SDP_Description *       description
 		SDP_SessionPlayTime *   session_play_time
 	CODE:
+		SDPXS_RemoveDependency(session_play_time);
 		SDP_RemoveSessionPlayTime(description, session_play_time);
 
 
@@ -1712,7 +2246,9 @@ get_zone_adjustments(description)
 	{
 		zone_adjustment = SDP_GetZoneAdjustments(description);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(zone_adjustment, CLASS);
+		SDPXS_RETURN_LINKED_LIST_AS_ARRAY(
+			zone_adjustment, description, CLASS
+		);
 	}
 
 
@@ -1722,6 +2258,7 @@ remove_zone_adjustment(description, zone_adjustment)
 		SDP_Description *      description
 		SDP_ZoneAdjustment *   zone_adjustment
 	CODE:
+		SDPXS_RemoveDependency(zone_adjustment);
 		SDP_RemoveZoneAdjustment(description, zone_adjustment);
 
 
@@ -1733,6 +2270,7 @@ get_encryption(description)
 		char CLASS[] = "Multimedia::SDP::Encryption";
 	CODE:
 		RETVAL = SDP_GetEncryption(description);
+		SDPXS_AddDependency(description, RETVAL);
 	OUTPUT:
 		RETVAL
 
@@ -1743,12 +2281,14 @@ get_attributes(description)
 		SDP_Description *description
 	PREINIT:
 		char CLASS[] = "Multimedia::SDP::Attribute";
-		SDP_Attribute *attribute;
+		SDP_Attribute *attributes;
 	PPCODE:
 	{
-		attribute = SDP_GetAttributes(description);
+		attributes = SDP_GetAttributes(description);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(attribute, CLASS);
+		SDPXS_RETURN_LINKED_LIST_AS_ARRAY(
+			attributes, description, CLASS
+		);
 	}
 
 
@@ -1758,6 +2298,7 @@ remove_attribute(description, attribute)
 		SDP_Description *   description
 		SDP_Attribute *     attribute
 	CODE:
+		SDPXS_RemoveDependency(attribute);
 		SDP_RemoveAttribute(description, attribute);
 
 
@@ -1767,12 +2308,14 @@ get_media_descriptions(description)
 		SDP_Description *description
 	PREINIT:
 		char CLASS[] = "Multimedia::SDP::MediaDescription";
-		SDP_MediaDescription *media_description;
+		SDP_MediaDescription *media_descriptions;
 	PPCODE:
 	{
-		media_description = SDP_GetMediaDescriptions(description);
+		media_descriptions = SDP_GetMediaDescriptions(description);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(media_description, CLASS);
+		SDPXS_RETURN_LINKED_LIST_AS_ARRAY(
+			media_descriptions, description, CLASS
+		);
 	}
 
 
@@ -1782,17 +2325,8 @@ remove_media_description(description, media_description)
 		SDP_Description *        description
 		SDP_MediaDescription *   media_description
 	CODE:
+		SDPXS_RemoveDependency(media_description);
 		SDP_RemoveMediaDescription(description, media_description);
-
-
-
-char *
-output_descriptions_to_string(descriptions)
-		SDP_Description *descriptions
-	CODE:
-		RETVAL = SDP_OutputDescriptionsToString(descriptions);
-	OUTPUT:
-		RETVAL
 
 
 
@@ -1801,17 +2335,6 @@ output_description_to_string(description)
 		SDP_Description *description
 	CODE:
 		RETVAL = SDP_OutputDescriptionToString(description);
-	OUTPUT:
-		RETVAL
-
-
-
-int
-output_descriptions_to_file(descriptions, filename)
-		SDP_Description *   descriptions
-		const char *        filename
-	CODE:
-		RETVAL = SDP_OutputDescriptionsToFile(descriptions, filename);
 	OUTPUT:
 		RETVAL
 
@@ -1828,91 +2351,16 @@ output_description_to_file(description, filename)
 
 
 
-SDP_Description *
-get_next_description(item)
-		SDP_Description *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::Description";
-	CODE:
-		RETVAL = SDP_GetNextDescription(item);
-	OUTPUT:
-		RETVAL
-
-
-
-SDP_Description *
-get_previous_description(item)
-		SDP_Description *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::Description";
-	CODE:
-		RETVAL = SDP_GetPreviousDescription(item);
-	OUTPUT:
-		RETVAL
-
-
-
 void
-destroy_descriptions(descriptions)
-		SDP_Description *descriptions
-	CODE:
-		SDP_DestroyDescriptions(descriptions);
-
-
-
-void
-destroy_description(description)
+DESTROY_description(description)
 		SDP_Description *description
 	CODE:
-		SDP_DestroyDescription(description);
-
-
-
-void
-destroy_email_contacts(description)
-		SDP_Description *description
-	CODE:
-		SDP_DestroyEmailContacts(description);
-
-
-
-void
-destroy_phone_contacts(description)
-		SDP_Description *description
-	CODE:
-		SDP_DestroyPhoneContacts(description);
-
-
-
-void
-destroy_session_play_times(description)
-		SDP_Description *description
-	CODE:
-		SDP_DestroySessionPlayTimes(description);
-
-
-
-void
-destroy_zone_adjustments(description)
-		SDP_Description *description
-	CODE:
-		SDP_DestroyZoneAdjustments(description);
-
-
-
-void
-destroy_attributes(description)
-		SDP_Description *description
-	CODE:
-		SDP_DestroyAttributes(description);
-
-
-
-void
-destroy_media_descriptions(description)
-		SDP_Description *description
-	CODE:
-		SDP_DestroyMediaDescriptions(description);
+	{
+		if (SDPXS_HasDependents(description))
+			SDPXS_RegisterForDelayedCleanup(description);
+		else
+			SDP_DestroyDescription(description);
+	}
 
 
 
@@ -2067,10 +2515,30 @@ get_owner_address(owner)
 
 
 void
-destroy_owner(owner)
+DESTROY_owner(owner)
 		SDP_Owner *owner
 	CODE:
-		SDP_DestroyOwner(owner);
+	{
+		if (SDPXS_IsDependent(owner))
+		{
+			SDP_Description *description;
+			int description_needs_cleanup;
+
+			description = (SDP_Description *) SDPXS_GetSupporter(
+				owner
+			);
+			description_needs_cleanup = SDPXS_RemoveDependency(
+				owner
+			);
+
+			if (description_needs_cleanup)
+				SDP_DestroyDescription(description);
+		}
+		else
+		{
+			SDP_DestroyOwner(owner);
+		}
+	}
 
 
 
@@ -2140,35 +2608,31 @@ get_email_name(email_contact)
 
 
 
-SDP_EmailContact *
-get_next_email_contact(item)
-		SDP_EmailContact *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::EmailContact";
-	CODE:
-		RETVAL = SDP_GetNextEmailContact(item);
-	OUTPUT:
-		RETVAL
-
-
-
-SDP_EmailContact *
-get_previous_email_contact(item)
-		SDP_EmailContact *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::EmailContact";
-	CODE:
-		RETVAL = SDP_GetPreviousEmailContact(item);
-	OUTPUT:
-		RETVAL
-
-
-
 void
-destroy_email_contact(email_contact)
+DESTROY_email_contact(email_contact)
 		SDP_EmailContact *email_contact
 	CODE:
-		SDP_DestroyEmailContact(email_contact);
+	{
+		if (SDPXS_IsDependent(email_contact))
+		{
+			SDP_Description *description;
+			int description_needs_cleanup;
+
+			description = (SDP_Description *) SDPXS_GetSupporter(
+				email_contact
+			);
+			description_needs_cleanup = SDPXS_RemoveDependency(
+				email_contact
+			);
+
+			if (description_needs_cleanup)
+				SDP_DestroyDescription(description);
+		}
+		else
+		{
+			SDP_DestroyEmailContact(email_contact);
+		}
+	}
 
 
 
@@ -2238,35 +2702,31 @@ get_phone_name(phone_contact)
 
 
 
-SDP_PhoneContact *
-get_next_phone_contact(item)
-		SDP_PhoneContact *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::PhoneContact";
-	CODE:
-		RETVAL = SDP_GetNextPhoneContact(item);
-	OUTPUT:
-		RETVAL
-
-
-
-SDP_PhoneContact *
-get_previous_phone_contact(item)
-		SDP_PhoneContact *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::PhoneContact";
-	CODE:
-		RETVAL = SDP_GetPreviousPhoneContact(item);
-	OUTPUT:
-		RETVAL
-
-
-
 void
-destroy_phone_contact(phone_contact)
+DESTROY_phone_contact(phone_contact)
 		SDP_PhoneContact *phone_contact
 	CODE:
-		SDP_DestroyPhoneContact(phone_contact);
+	{
+		if (SDPXS_IsDependent(phone_contact))
+		{
+			SDP_Description *description;
+			int description_needs_cleanup;
+
+			description = (SDP_Description *) SDPXS_GetSupporter(
+				phone_contact
+			);
+			description_needs_cleanup = SDPXS_RemoveDependency(
+				phone_contact
+			);
+
+			if (description_needs_cleanup)
+				SDP_DestroyDescription(description);
+		}
+		else
+		{
+			SDP_DestroyPhoneContact(phone_contact);
+		}
+	}
 
 
 
@@ -2396,10 +2856,30 @@ get_total_connection_addresses(connection)
 
 
 void
-destroy_connection(connection)
+DESTROY_connection(connection)
 		SDP_Connection *connection
 	CODE:
-		SDP_DestroyConnection(connection);
+	{
+		if (SDPXS_IsDependent(connection))
+		{
+			SDP_Description *description;
+			int description_needs_cleanup;
+
+			description = (SDP_Description *) SDPXS_GetSupporter(
+				connection
+			);		
+			description_needs_cleanup = SDPXS_RemoveDependency(
+				connection
+			);
+
+			if (description_needs_cleanup)
+				SDP_DestroyDescription(description);
+		}
+		else
+		{
+			SDP_DestroyConnection(connection);
+		}
+	}
 
 
 
@@ -2468,10 +2948,30 @@ get_bandwidth_value(bandwidth)
 
 
 void
-destroy_bandwidth(bandwidth)
+DESTROY_bandwidth(bandwidth)
 		SDP_Bandwidth *bandwidth
 	CODE:
-		SDP_DestroyBandwidth(bandwidth);
+	{
+		if (SDPXS_IsDependent(bandwidth))
+		{
+			SDP_Description *description;
+			int description_needs_cleanup;
+
+			description = (SDP_Description *) SDPXS_GetSupporter(
+				bandwidth
+			);
+			description_needs_cleanup = SDPXS_RemoveDependency(
+				bandwidth
+			);
+
+			if (description_needs_cleanup)
+				SDP_DestroyDescription(description);
+		}
+		else
+		{
+			SDP_DestroyBandwidth(bandwidth);
+		}
+	}
 
 
 
@@ -2522,6 +3022,7 @@ add_repeat_time(session_play_time, repeat_time)
 		SDP_SessionPlayTime *   session_play_time
 		SDP_RepeatTime *        repeat_time
 	CODE:
+		SDPXS_AddDependency(session_play_time, repeat_time);
 		SDP_AddRepeatTime(session_play_time, repeat_time);
 
 
@@ -2538,7 +3039,7 @@ add_new_repeat_time(session_play_time, repeat_interval, active_duration, ...)
 	{
 		total_offsets = items - 3;
 
-		SDP_COPY_ARRAY_FROM_STACK(
+		SDPXS_COPY_ARRAY_FROM_STACK(
 			repeat_offsets, unsigned long, SvUV, total_offsets
 		);
 
@@ -2583,12 +3084,14 @@ get_repeat_times(session_play_time)
 		SDP_SessionPlayTime *session_play_time
 	PREINIT:
 		char CLASS[] = "Multimedia::SDP::RepeatTime";
-		SDP_RepeatTime *repeat_time;
+		SDP_RepeatTime *repeat_times;
 	PPCODE:
 	{
-		repeat_time = SDP_GetRepeatTimes(session_play_time);
+		repeat_times = SDP_GetRepeatTimes(session_play_time);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(repeat_time, CLASS);
+		SDPXS_RETURN_LINKED_LIST_AS_ARRAY(
+			repeat_times, session_play_time, CLASS
+		);
 	}
 
 
@@ -2598,47 +3101,45 @@ remove_repeat_time(session_play_times, repeat_time)
 		SDP_SessionPlayTime *   session_play_times
 		SDP_RepeatTime *        repeat_time
 	CODE:
+		SDPXS_RemoveDependency(repeat_time);
 		SDP_RemoveRepeatTime(session_play_times, repeat_time);
 
 
 
-SDP_SessionPlayTime *
-get_next_session_play_time(item)
-		SDP_SessionPlayTime *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::SessionPlayTime";
-	CODE:
-		RETVAL = SDP_GetNextSessionPlayTime(item);
-	OUTPUT:
-		RETVAL
-
-
-
-SDP_SessionPlayTime *
-get_previous_session_play_time(item)
-		SDP_SessionPlayTime *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::SessionPlayTime";
-	CODE:
-		RETVAL = SDP_GetPreviousSessionPlayTime(item);
-	OUTPUT:
-		RETVAL
-
-
-
 void
-destroy_session_play_time(session_play_time)
+DESTROY_session_play_time(session_play_time)
 		SDP_SessionPlayTime *session_play_time
 	CODE:
-		SDP_DestroySessionPlayTime(session_play_time);
+	{
+		if (SDPXS_IsDependent(session_play_time))
+		{
+			if (!SDPXS_HasDependents(session_play_time))
+			{
+				SDP_Description *description;
+				int destroy_description;
+				
+				description =
+					(SDP_Description *) SDPXS_GetSupporter(
+						session_play_time
+					);
+				destroy_description = SDPXS_RemoveDependency(
+					session_play_time
+				);
 
-
-
-void
-destroy_repeat_times(session_play_time)
-		SDP_SessionPlayTime *session_play_time
-	CODE:
-		SDP_DestroyRepeatTimes(session_play_time);
+				if (destroy_description)
+					SDP_DestroyDescription(description);
+			}
+		}
+		else
+		{
+			if (SDPXS_HasDependents(session_play_time))
+				SDPXS_RegisterForDelayedCleanup(
+					session_play_time
+				);
+			else
+				SDP_DestroySessionPlayTime(session_play_time);
+		}
+	}
 
 
 
@@ -2694,7 +3195,7 @@ set_repeat_offsets(repeat_time, ...)
 	{
 		total_offsets = items - 1;
 
-		SDP_COPY_ARRAY_FROM_STACK(
+		SDPXS_COPY_ARRAY_FROM_STACK(
 			repeat_offsets, unsigned long, SvUV, total_offsets
 		);
 
@@ -2740,45 +3241,53 @@ get_repeat_offsets(repeat_time)
 
 
 
-int
-get_total_repeat_offsets(repeat_time)
-		SDP_RepeatTime *repeat_time
-	CODE:
-		RETVAL = SDP_GetTotalRepeatOffsets(repeat_time);
-	OUTPUT:
-		RETVAL
-
-
-
-SDP_RepeatTime *
-get_next_repeat_time(item)
-		SDP_RepeatTime *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::RepeatTime";
-	CODE:
-		RETVAL = SDP_GetNextRepeatTime(item);
-	OUTPUT:
-		RETVAL
-
-
-
-SDP_RepeatTime *
-get_previous_repeat_time(item)
-		SDP_RepeatTime *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::RepeatTime";
-	CODE:
-		RETVAL = SDP_GetPreviousRepeatTime(item);
-	OUTPUT:
-		RETVAL
-
-
-
 void
-destroy_repeat_time(repeat_time)
+DESTROY_repeat_time(repeat_time)
 		SDP_RepeatTime *repeat_time
 	CODE:
-		SDP_DestroyRepeatTime(repeat_time);
+	{
+		if (SDPXS_IsDependent(repeat_time))
+		{
+			SDP_SessionPlayTime *session_play_time;
+			int destroy_session_play_time;
+
+			session_play_time =
+				(SDP_SessionPlayTime *) SDPXS_GetSupporter(
+					repeat_time
+				);
+			destroy_session_play_time = SDPXS_RemoveDependency(
+				repeat_time
+			);
+			
+			if (SDPXS_IsDependent(session_play_time))
+			{
+				SDP_Description *description;
+				int destroy_description;
+
+				description =
+					(SDP_Description *) SDPXS_GetSupporter(
+						session_play_time
+					);
+				destroy_description = SDPXS_RemoveDependency(
+					session_play_time
+				);
+			
+				if (destroy_description)
+					SDP_DestroyDescription(description);
+			}
+			else
+			{
+				if (destroy_session_play_time)
+					SDP_DestroySessionPlayTime(
+						session_play_time
+					);
+			}
+		}
+		else
+		{
+			SDP_DestroyRepeatTime(repeat_time);
+		}
+	}
 
 
 
@@ -2844,35 +3353,31 @@ get_zone_adjustment_offset(zone_adjustment)
 
 
 
-SDP_ZoneAdjustment *
-get_next_zone_adjustment(item)
-		SDP_ZoneAdjustment *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::ZoneAdjustment";
-	CODE:
-		RETVAL = SDP_GetNextZoneAdjustment(item);
-	OUTPUT:
-		RETVAL
-
-
-
-SDP_ZoneAdjustment *
-get_previous_zone_adjustment(item)
-		SDP_ZoneAdjustment *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::ZoneAdjustment";
-	CODE:
-		RETVAL = SDP_GetPreviousZoneAdjustment(item);
-	OUTPUT:
-		RETVAL
-
-
-
 void
-destroy_zone_adjustment(zone_adjustment)
+DESTROY_zone_adjustment(zone_adjustment)
 		SDP_ZoneAdjustment *zone_adjustment
 	CODE:
-		SDP_DestroyZoneAdjustment(zone_adjustment);
+	{
+		if (SDPXS_IsDependent(zone_adjustment))
+		{
+			SDP_Description *description;
+			int destroy_description;
+
+			description = (SDP_Description *) SDPXS_GetSupporter(
+				zone_adjustment
+			);
+			destroy_description = SDPXS_RemoveDependency(
+				zone_adjustment
+			);
+
+			if (destroy_description)
+				SDP_DestroyDescription(description);
+		}
+		else
+		{
+			SDP_DestroyZoneAdjustment(zone_adjustment);
+		}
+	}
 
 
 
@@ -2943,10 +3448,30 @@ get_encryption_key(encryption)
 
 
 void
-destroy_encryption(encryption)
+DESTROY_encryption(encryption)
 		SDP_Encryption *encryption
 	CODE:
-		SDP_DestroyEncryption(encryption);
+	{
+		if (SDPXS_IsDependent(encryption))
+		{
+			SDP_Description *description;
+			int destroy_description;
+
+			description = (SDP_Description *) SDPXS_GetSupporter(
+				encryption
+			);
+			destroy_description = SDPXS_RemoveDependency(
+				encryption
+			);
+
+			if (destroy_description)
+				SDP_DestroyDescription(description);
+		}
+		else
+		{
+			SDP_DestroyEncryption(encryption);
+		}
+	}
 
 
 
@@ -3016,35 +3541,31 @@ get_attribute_value(attribute)
 
 
 
-SDP_Attribute *
-get_next_attribute(item)
-		SDP_Attribute *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::Attribute";
-	CODE:
-		RETVAL = SDP_GetNextAttribute(item);
-	OUTPUT:
-		RETVAL
-
-
-
-SDP_Attribute *
-get_previous_attribute(item)
-		SDP_Attribute *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::Attribute";
-	CODE:
-		RETVAL = SDP_GetPreviousAttribute(item);
-	OUTPUT:
-		RETVAL
-
-
-
 void
-destroy_attribute(attribute)
+DESTROY_attribute(attribute)
 		SDP_Attribute *attribute
 	CODE:
-		SDP_DestroyAttribute(attribute);
+	{
+		if (SDPXS_IsDependent(attribute))
+		{
+			SDP_Description *description;
+			int destroy_description;
+
+			description = (SDP_Description *) SDPXS_GetSupporter(
+				attribute
+			);
+			destroy_description = SDPXS_RemoveDependency(
+				attribute
+			);
+
+			if (destroy_description)
+				SDP_DestroyDescription(description);
+		}
+		else
+		{
+			SDP_DestroyAttribute(attribute);
+		}
+	}
 
 
 
@@ -3106,7 +3627,9 @@ set_media_transport_protocol(media_description, transport_protocol)
 		SDP_MediaDescription *   media_description
 		const char *             transport_protocol
 	CODE:
-		RETVAL = SDP_SetMediaTransportProtocol(media_description, transport_protocol);
+		RETVAL = SDP_SetMediaTransportProtocol(
+			media_description, transport_protocol
+		);
 	OUTPUT:
 		RETVAL
 
@@ -3128,7 +3651,9 @@ set_media_information(media_description, media_information)
 		SDP_MediaDescription *   media_description
 		const char *             media_information
 	CODE:
-		RETVAL = SDP_SetMediaInformation(media_description, media_information);
+		RETVAL = SDP_SetMediaInformation(
+			media_description, media_information
+		);
 	OUTPUT:
 		RETVAL
 
@@ -3143,7 +3668,14 @@ set_media_connection(media_description, network_type, address_type, address, ttl
 		int                      ttl
 		int                      total_addresses
 	CODE:
-		RETVAL = SDP_SetMediaConnection(media_description, network_type, address_type, address, ttl, total_addresses);
+		RETVAL = SDP_SetMediaConnection(
+			media_description,
+			network_type,
+			address_type,
+			address,
+			ttl,
+			total_addresses
+		);
 	OUTPUT:
 		RETVAL
 
@@ -3155,7 +3687,9 @@ set_media_bandwidth(media_description, modifier, value)
 		const char *             modifier
 		long                     value
 	CODE:
-		RETVAL = SDP_SetMediaBandwidth(media_description, modifier, value);
+		RETVAL = SDP_SetMediaBandwidth(
+			media_description, modifier, value
+		);
 	OUTPUT:
 		RETVAL
 
@@ -3178,6 +3712,7 @@ add_media_attribute(media_description, attribute)
 		SDP_MediaDescription *   media_description
 		SDP_Attribute *          attribute
 	CODE:
+		SDPXS_AddDependency(media_description, attribute);
 		SDP_AddMediaAttribute(media_description, attribute);
 
 
@@ -3188,7 +3723,9 @@ add_new_media_attribute(media_description, name, value)
 		const char *             name
 		const char *             value
 	CODE:
-		RETVAL = SDP_AddNewMediaAttribute(media_description, name, value);
+		RETVAL = SDP_AddNewMediaAttribute(
+			media_description, name, value
+		);
 	OUTPUT:
 		RETVAL
 
@@ -3258,9 +3795,10 @@ SDP_Connection *
 get_media_connection(media_description)
 		SDP_MediaDescription *media_description
 	PREINIT:
-		char CLASS[] = "Multimedia::SDP::Connection";
+		char CLASS[] = "Multimedia::SDP::MediaConnection";
 	CODE:
 		RETVAL = SDP_GetMediaConnection(media_description);
+		SDPXS_AddDependency(media_description, RETVAL);
 	OUTPUT:
 		RETVAL
 
@@ -3270,9 +3808,10 @@ SDP_Bandwidth *
 get_media_bandwidth(media_description)
 		SDP_MediaDescription *media_description
 	PREINIT:
-		char CLASS[] = "Multimedia::SDP::Bandwidth";
+		char CLASS[] = "Multimedia::SDP::MediaBandwidth";
 	CODE:
 		RETVAL = SDP_GetMediaBandwidth(media_description);
+		SDPXS_AddDependency(media_description, RETVAL);
 	OUTPUT:
 		RETVAL
 
@@ -3282,9 +3821,10 @@ SDP_Encryption *
 get_media_encryption(media_description)
 		SDP_MediaDescription *media_description
 	PREINIT:
-		char CLASS[] = "Multimedia::SDP::Encryption";
+		char CLASS[] = "Multimedia::SDP::MediaEncryption";
 	CODE:
 		RETVAL = SDP_GetMediaEncryption(media_description);
+		SDPXS_AddDependency(media_description, RETVAL);
 	OUTPUT:
 		RETVAL
 
@@ -3294,45 +3834,152 @@ SV *
 get_media_attributes(media_description)
 		SDP_MediaDescription *media_description
 	PREINIT:
-		char CLASS[] = "Multimedia::SDP::Attribute";
-		SDP_Attribute *attribute;
+		char CLASS[] = "Multimedia::SDP::MediaAttribute";
+		SDP_Attribute *attributes;
 	PPCODE:
 	{
-		attribute = SDP_GetMediaAttributes(media_description);
+		attributes = SDP_GetMediaAttributes(media_description);
 
-		SDP_RETURN_LINKED_LIST_AS_ARRAY(attribute, CLASS);
+		SDPXS_RETURN_LINKED_LIST_AS_ARRAY(
+			attributes, media_description, CLASS
+		);
 	}
 
 
 
-SDP_MediaDescription *
-get_next_media_description(item)
-		SDP_MediaDescription *item
-	INIT:
-		char CLASS[] = "Multimedia::SDP::MediaDescription";
-	CODE:
-		RETVAL = SDP_GetNextMediaDescription(item);
-	OUTPUT:
-		RETVAL
-
-
-
 void
-destroy_media_description(media_description)
+DESTROY_media_description(media_description)
 		SDP_MediaDescription *media_description
 	CODE:
-		SDP_DestroyMediaDescription(media_description);
+	{
+		if (SDPXS_IsDependent(media_description))
+		{
+			if (!SDPXS_HasDependents(media_description))
+			{
+				SDP_Description *description;
+				int destroy_description;
+				
+				description =
+					(SDP_Description *) SDPXS_GetSupporter(
+						media_description
+					);
+				destroy_description = SDPXS_RemoveDependency(
+					media_description
+				);
+
+				if (destroy_description)
+					SDP_DestroyDescription(description);
+			}
+		}
+		else
+		{
+			if (SDPXS_HasDependents(media_description))
+				SDPXS_RegisterForDelayedCleanup(
+					media_description
+				);
+			else
+				SDP_DestroyMediaDescription(media_description);
+		}
+	}
 
 
+
+
+
+################################################################################
+#
+# The DESTROY destructor methods for the Media wrapper classes. (These exist
+# because Connection, Bandwidth, Encryption, Attribute objects need to know
+# what type of object they belong to so they can destroy that object if need
+# be. So we provide these classes with these DESTROY methods, and then just
+# inherit from the *real* class using @INC in SinisterSdp.pm):
+#
+################################################################################
+
+#define SDPXS_DESTROY_MEDIA(_object_, _destroy_function_)                      \
+	do {                                                                   \
+		if (SDPXS_IsDependent(_object_))                               \
+		{                                                              \
+			SDP_MediaDescription *media_description;               \
+			int destroy_media_description;                         \
+                                                                               \
+			media_description =                                    \
+				(SDP_MediaDescription *) SDPXS_GetSupporter(   \
+					_object_                               \
+				);                                             \
+			destroy_media_description = SDPXS_RemoveDependency(    \
+				_object_                                       \
+			);                                                     \
+			                                                       \
+			if (SDPXS_IsDependent(media_description))              \
+			{                                                      \
+				SDP_Description *description;                  \
+				int destroy_description;                       \
+                                                                               \
+				description =                                  \
+					(SDP_Description*) SDPXS_GetSupporter( \
+						media_description              \
+					);                                     \
+				destroy_description = SDPXS_RemoveDependency(  \
+					media_description                      \
+				);                                             \
+			                                                       \
+				if (destroy_description)                       \
+					SDP_DestroyDescription(description);   \
+			}                                                      \
+			else                                                   \
+			{                                                      \
+				if (destroy_media_description)                 \
+					SDP_DestroyMediaDescription(           \
+						media_description              \
+					);                                     \
+			}                                                      \
+		}                                                              \
+		else                                                           \
+		{                                                              \
+			_destroy_function_(_object_);                          \
+		}                                                              \
+	} while (0)
+
+MODULE = Multimedia::SDP::SinisterSdp	PACKAGE = Multimedia::SDP::MediaBandwidth
 
 void
-destroy_media_attributes(media_description)
-		SDP_MediaDescription *media_description
+DESTROY_media_bandwidth(bandwidth)
+		SDP_Bandwidth *bandwidth
 	CODE:
-		SDP_DestroyMediaAttributes(media_description);
+	{
+		SDPXS_DESTROY_MEDIA(bandwidth, SDP_DestroyBandwidth);
+	}
 
+MODULE = Multimedia::SDP::SinisterSdp	PACKAGE = Multimedia::SDP::MediaConnection
 
+void
+DESTROY_media_connection(connection)
+		SDP_Connection *connection
+	CODE:
+	{
+		SDPXS_DESTROY_MEDIA(connection, SDP_DestroyConnection);
+	}
 
+MODULE = Multimedia::SDP::SinisterSdp	PACKAGE = Multimedia::SDP::MediaEncryption
+
+void
+DESTROY_media_encryption(encryption)
+		SDP_Encryption *encryption
+	CODE:
+	{
+		SDPXS_DESTROY_MEDIA(encryption, SDP_DestroyEncryption);
+	}
+
+MODULE = Multimedia::SDP::SinisterSdp	PACKAGE = Multimedia::SDP::MediaAttribute
+
+void
+DESTROY_media_attribute(attribute)
+		SDP_Attribute *attribute
+	CODE:
+	{
+		SDPXS_DESTROY_MEDIA(attribute, SDP_DestroyAttribute);
+	}
 
 
 
@@ -3409,8 +4056,8 @@ void
 set_fatal_error_handler(handler)
 		SV *handler
 	CODE:
-		SDP_SET_SV_IN_GLUE(_fatal_error_handler, handler);
-		SDP_SetFatalErrorHandler(invoke_fatal_error_handler);
+		SDPXS_SET_SV(sdpxs_fatal_error_handler, handler);
+		SDP_SetFatalErrorHandler(SDPXS_InvokeFatalErrorHandler);
 
 
 
@@ -3418,5 +4065,9 @@ void
 set_non_fatal_error_handler(handler)
 		SV *handler
 	CODE:
-		SDP_SET_SV_IN_GLUE(_non_fatal_error_handler, handler);
-		SDP_SetNonFatalErrorHandler(invoke_non_fatal_error_handler);
+		SDPXS_SET_SV(sdpxs_non_fatal_error_handler, handler);
+		SDP_SetNonFatalErrorHandler(SDPXS_InvokeNonFatalErrorHandler);
+
+
+
+# the end.

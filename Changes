@@ -1,0 +1,24 @@
+Changelog for Multimedia::SDP::SinisterSdp:
+--------------------------------------------------------------------------------
+
+
+[0.45]
+----------------------------------------,
+Gave every routine and every structure defined in the SinisterSdp.xs file a
+"SDPXS_" prefix.
+
+A dependency mechanism has been introduced. This enables methods to return
+references to internal objects, and ensures that they won't be destroyed until
+you are done with them. (You can write a routine that, for example, returns a
+reference to an inernal object, and even though the container has gone out of
+scope, the internal object wont be destroyed until it too goes out of scope.)
+
+
+[0.37]
+----------------------------------------,
+Fixed linked list to array conversion.
+
+
+[0.35]
+----------------------------------------,
+Initial release.

@@ -52,7 +52,7 @@ use 5.005;
 use strict;
 use warnings;
 use vars qw(@EXPORT @EXPORT_OK %EXPORT_TAGS);
-use base 'Exporter'
+use base 'Exporter';
 use Multimedia::SDP::SinisterSdp;
 
 @EXPORT      = @Multimedia::SDP::SinisterSdp::EXPORT;
@@ -209,9 +209,10 @@ encountered for the description being parsed.
 
 =head1 BUGS
 
-Bugs in this package can be reported and monitored using CPAN's request tracker.
+Bugs in this package can be reported and monitored using CPAN's request
+tracker: http://rt.cpan.org.
 
-You can also email me directly via
+You can also email me directly:
 <william_g_davis at users dot sourceforge dot net>.
 
 =head1 COPYRIGHT
