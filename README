@@ -1,0 +1,41 @@
+Multimedia::SDP::SinisterSdp - The Perl interface to the C SinisterSdp library.
+--------------------------------------------------------------------------------
+
+1) INTRODUCTION
+
+This distribution is the Perl front end to the SinisterSdp C library. It is
+completely object oriented, and organized into two main parts: a parser class
+and a generator class.
+
+To use this module, you need
+
+2) INSTALLATION
+
+You'll need to instal SinisterSdp at some point. You might want to do this now
+on your own, or Makefile.pl can go and try to do it for you. SinisterSdp can be
+obtained from SorceForge: http://sourceforge.net/projects/sinistersdp/
+
+To install this module, run the following commands:
+
+ $ perl Makefile.PL
+ $ make
+ $ make test
+ $ make install
+
+3) GETTING STARTED
+
+One you've installed the module, run the following command for how to use it:
+
+ $ perldoc Multimedia::SDP
+
+4) COPYRIGHT
+
+Copyright 2004 by William G. Davis.
+
+This library is free software released under the terms of the GNU Lesser
+General Public License (LGPL), the full terms of which can be found in the
+"COPYING" file that comes with the distribution.
+
+This library is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.

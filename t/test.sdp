@@ -1,0 +1,7 @@
+v=7
+o=wgdavis 2890844526 v1.001 IN IP4 127.0.0.1
+s=Test SDP Description
+i=A simple SDP description to test the SinisterSdp Perl module.
+u=http://search.cpan.org/dist/Multimedia-SDP
+e=william_g_davis@users.sourceforge.net (William G. Davis)
+c=IN IP4 127.0.0.1/120

@@ -1,0 +1,14 @@
+COPYING
+Changes
+Generator.pm
+MANIFEST
+Makefile.PL
+Parser.pm
+README
+SDP.pm
+SinisterSdp.pm
+SinisterSdp.xs
+ppport.h
+t/test.sdp
+t/test.t
+typemap
