@@ -1615,28 +1615,6 @@ get_email_contacts(description)
 	PPCODE:
 	{
 		email_contacts = SDP_GetEmailContacts(description);
-		if (email_contacts == NULL)
-			croak("Not defined, but it damn well should be.");
-
-		if (strcmp(
-			SDP_GetEmailAddress(email_contacts),
-			"william_g_davis@users.sourceforge.net") != 0)
-				croak(
-					"Bad address: %s", 
-					SDP_GetEmailAddress(email_contacts)
-				);
-
-		if (strcmp(
-			SDP_GetEmailName(email_contacts),
-			"William G. Davis") != 0)
-				croak(
-					"Bad name %s (%s)",
-					SDP_GetEmailName(email_contacts),
-					SDP_GetEmailAddress(email_contacts)
-				);
-
-		if (email_contacts->next || email_contacts->previous)
-			croak("What the fuck? There is no next!!!");
 
 		SDP_RETURN_LINKED_LIST_AS_ARRAY(email_contacts, CLASS);
 	}

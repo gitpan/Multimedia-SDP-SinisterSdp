@@ -43,7 +43,7 @@ BEGIN {
 	use Exporter;
 	use DynaLoader;
 
-	$VERSION = '0.35';
+	$VERSION = '0.37';
 
 	push(@ISA, qw(Exporter DynaLoader));
 

@@ -43,7 +43,7 @@ use base 'Exporter';
 use Multimedia::SDP::Parser;
 use Multimedia::SDP::Generator;
 
-$VERSION = '0.35';
+$VERSION = '0.40';
 
 @EXPORT = (
 	@Multimedia::SDP::Parser::EXPORT
