@@ -13,6 +13,8 @@ you are done with them. (You can write a routine that, for example, returns a
 reference to an inernal object, and even though the container has gone out of
 scope, the internal object wont be destroyed until it too goes out of scope.)
 
+Also removed many needless and redundant XSUBs from SinisterSdp.xs put in there
+by the code generator.
 
 [0.37]
 ----------------------------------------,

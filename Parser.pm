@@ -51,13 +51,11 @@ The following methods are available:
 use 5.005;
 use strict;
 use warnings;
-use vars qw(@EXPORT @EXPORT_OK %EXPORT_TAGS);
+use vars '@EXPORT';
 use base 'Exporter';
 use Multimedia::SDP::SinisterSdp;
 
-@EXPORT      = @Multimedia::SDP::SinisterSdp::EXPORT;
-@EXPORT_OK   = @Multimedia::SDP::SinisterSdp::EXPORT_OK;
-%EXPORT_TAGS = %Multimedia::SDP::SinisterSdp::EXPORT_TAGS;
+@EXPORT = @Multimedia::SDP::SinisterSdp::EXPORT;
 
 1;
 
@@ -73,7 +71,7 @@ returns a reference to it.
 This function parses one or more SDP session descriptions from a string into
 B<Multimedia::SDP::Description> objects. If there are multiple descriptions,
 then it returns an array of B<Multimedia::SDP::Description> objects in list
-context, and just the first description in scalar context.
+context and just the first description object in scalar context.
 
 It returns undef if an error occurred and it had to stop parsing.
 
@@ -86,8 +84,8 @@ L<Multimedia::SDP::Description|Multimedia::SDP::Description>.
 This function parses one or more SDP session descriptions from the specified
 file into B<Multimedia::SDP::Description> objects. If there are multiple
 descriptions in the file, then it returns an array of
-B<Multimedia::SDP::Description> objects in list context, and just the first
-description in scalar context.
+B<Multimedia::SDP::Description> objects in list context and just the first
+description object in scalar context.
 
 It returns undef if an error occurred and it couldn't open the file or parse
 the descriptions inside.
@@ -125,8 +123,7 @@ a convience, the return value detailed below will also be passed on to the
 end handler.
 
 You can register a non-fatal error handler to catch parser errors and decide
-dynamically whether or not you want it to keep parsing. See
-L<Multimedia::SDP|Multimedia::SDP> for more information on this.
+dynamically whether or not you want it to keep parsing.
 
 =head2 event_stream_parse_file(FILENAME)
 
@@ -176,6 +173,10 @@ called when parsering terminates. Any subroutine reference you supply will be
 invoked with the parser object as the first argument, the result of parsing
 (true or false for success or failure) as the second argument, and a reference
 to the user data as the third argument.
+
+=head2 halt()
+
+You can call this method from one of the above handlers to stop parsing.
 
 =head2 user_data([REFERENCE])
 

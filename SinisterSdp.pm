@@ -34,42 +34,61 @@ the C interface much more Perl-ish.
 use 5.005;
 use strict;
 use warnings;
+use vars qw($VERSION @ISA @EXPORT);
+use Carp;
 
-BEGIN {
+use Exporter;
+use DynaLoader;
 
-	use vars qw($VERSION @ISA @EXPORT);
-	use Carp;
+$VERSION = '0.52';
 
-	use Exporter;
-	use DynaLoader;
+push(@ISA, qw(
+	Exporter
+	DynaLoader
+	Multimedia::SDP::SinisterSdp::Utility
+));
 
-	$VERSION = '0.45';
+# the error codes get exported for comparing with the return values
+# from last_error(); nothing else:
+@EXPORT = qw(
+	NO_ERROR
+	ERR_GENERIC
+	ERR_OUT_OF_MEMORY
+	ERR_FILE_OPEN_FAILED
+	ERR_MALFORMED_LINE
+	ERR_MALFORMED_V_FIELD
+	ERR_MALFORMED_O_FIELD
+	ERR_MALFORMED_E_FIELD
+	ERR_MALFORMED_P_FIELD
+	ERR_MALFORMED_C_FIELD
+	ERR_MALFORMED_B_FIELD
+	ERR_MALFORMED_T_FIELD
+	ERR_MALFORMED_R_FIELD
+	ERR_MALFORMED_Z_FIELD
+	ERR_MALFORMED_K_FIELD
+	ERR_MALFORMED_A_FIELD
+	ERR_MALFORMED_M_FIELD
+	ERR_INVALID_TYPE_CHARACTER
+	ERR_MULTIPLE_UNIQUE_FIELDS
+	ERR_FIELDS_OUT_OF_SEQUENCE
+);
 
-	push(@ISA, qw(Exporter DynaLoader));
 
-	@EXPORT = qw(
-		NO_ERROR
-		ERR_GENERIC
-		ERR_OUT_OF_MEMORY
-		ERR_FILE_OPEN_FAILED
-		ERR_MALFORMED_FIELD
-		ERR_EMPTY_FIELD
-		ERR_INVALID_TYPE_CHARACTER
-		ERR_MULTIPLE_UNIQUE_FIELDS
-		ERR_FEILDS_OUT_OF_SEQUENCE
-	);
 
-	bootstrap Multimedia::SDP::SinisterSdp $VERSION;
-}
+# load our library:
+bootstrap Multimedia::SDP::SinisterSdp $VERSION;
 
-# set default error handlers:
-set_fatal_error_handler(sub { croak shift });
-set_non_fatal_error_handler(
+
+
+# set two simple default error handlers:
+Multimedia::SDP::SinisterSdp->set_fatal_error_handler(sub { croak shift });
+Multimedia::SDP::SinisterSdp->set_non_fatal_error_handler(
 	sub {
 		carp shift;
-		return 1;
+		return 1; # keep on going
 	}
 );
+
 
 
 
@@ -84,13 +103,17 @@ set_non_fatal_error_handler(
 ################################################################################
 
 package Multimedia::SDP::Parser;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	return $class->new_parser;
+	my $self = $class->new_parser;
+
+	return $self;
 }
 
 
@@ -205,30 +228,6 @@ sub user_data
 
 
 
-sub current_line_number { return shift->get_current_line_number }
-
-
-
-
-
-sub current_description_number { return shift->get_current_description_number }
-
-
-
-
-
-sub current_field_type { return shift->get_current_field_type }
-
-
-
-
-
-sub current_field { return shift->get_current_field }
-
-
-
-
-
 
 
 ################################################################################
@@ -238,6 +237,8 @@ sub current_field { return shift->get_current_field }
 ################################################################################
 
 package Multimedia::SDP::Generator;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -251,7 +252,7 @@ sub new
 
 
 
-sub v_field
+sub v
 {
 	my ($self, $protocol_version) = @_;
 
@@ -262,7 +263,7 @@ sub v_field
 
 
 
-sub o_field
+sub o
 {
 	my $self = shift;
 	
@@ -292,7 +293,7 @@ sub o_field
 
 
 
-sub s_field
+sub s
 {
 	my ($self, $session_name) = @_;
 
@@ -303,7 +304,7 @@ sub s_field
 
 
 
-sub i_field
+sub i
 {
 	my ($self, $information) = @_;
 
@@ -314,7 +315,7 @@ sub i_field
 
 
 
-sub u_field
+sub u
 {
 	my ($self, $uri) = @_;
 
@@ -325,7 +326,7 @@ sub u_field
 
 
 
-sub e_field
+sub e
 {
 	my $self = shift;
 	
@@ -339,10 +340,7 @@ sub e_field
 	{
 		my ($address, $name) = @_;
 
-		$self->gen_email_contact_field(
-			$address,
-			$name
-		);
+		$self->gen_email_contact_field($address, $name);
 	}
 }
 
@@ -350,7 +348,7 @@ sub e_field
 
 
 
-sub p_field
+sub p
 {
 	my $self = shift;
 	
@@ -364,10 +362,7 @@ sub p_field
 	{
 		my ($number, $name) = @_;
 
-		$self->gen_phone_contact_field(
-			$number,
-			$name
-		);
+		$self->gen_phone_contact_field($number, $name);
 	}
 }
 
@@ -375,7 +370,7 @@ sub p_field
 
 
 
-sub c_field
+sub c
 {
 	my $self = shift;
 	
@@ -404,7 +399,7 @@ sub c_field
 
 
 
-sub b_field
+sub b
 {
 	my $self = shift;
 	
@@ -426,7 +421,7 @@ sub b_field
 
 
 
-sub t_field
+sub t
 {
 	my $self = shift;
 
@@ -451,7 +446,7 @@ sub t_field
 
 
 
-sub r_field
+sub r
 {
 	my $self = shift;
 
@@ -479,7 +474,7 @@ sub r_field
 
 
 
-sub z_field
+sub z
 {
 	my $self = shift;
 
@@ -492,7 +487,7 @@ sub z_field
 		my @adjustment_objects;
 		while (my ($time, $offset) = (shift, shift))
 		{
-			my $adjustment = new Multimedia::SDP::ZoneAdjustment;
+			my $adjustment = Multimedia::SDP::ZoneAdjustment->new;
 
 			$adjustment->time($time);
 			$adjustment->offset($offset);
@@ -508,7 +503,7 @@ sub z_field
 
 
 
-sub k_field
+sub k
 {
 	my $self = shift;
 
@@ -530,7 +525,7 @@ sub k_field
 
 
 
-sub a_field
+sub a
 {
 	my $self = shift;
 
@@ -552,7 +547,7 @@ sub a_field
 
 
 
-sub m_field
+sub m
 {
 	my $self = shift;
 
@@ -568,32 +563,15 @@ sub m_field
 	}
 	else
 	{
-		my ($media_type, $port, $total_ports, $transport_protocol,
-		    $formats) = @_;
+		my ($media_type, $port, $transport_protocol, $formats) = @_;
 
 		$formats = join(' ', @$formats) if (ref $formats eq 'ARRAY');
 
 		$self->gen_media_description_field(
-			$media_type,
-			$port,
-			$total_ports,
-			$transport_protocol,
-			$formats
+			$media_type, $port, $transport_protocol, $formats
 		);
 	}
 }
-
-
-
-
-
-sub output { return shift->get_generated_output }
-
-
-
-
-
-sub save_output { return shift->save_generated_output(@_) }
 
 
 
@@ -608,13 +586,17 @@ sub save_output { return shift->save_generated_output(@_) }
 ################################################################################
 
 package Multimedia::SDP::Description;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
 	my $invo  = shift;
 	my $class = ref $invo || $invo;
 
-	return $class->new_description;
+	my $self = $class->new_description;
+
+	return $self;
 }
 
 
@@ -693,22 +675,6 @@ sub uri
 
 
 
-sub output_to_string { return shift->output_description_to_string }
-
-
-
-
-sub output_to_file
-{
-	my ($self, $filename) = @_;
-
-	$self->output_description_to_file($filename)
-}
-
-
-
-
-
 
 
 ################################################################################
@@ -718,6 +684,8 @@ sub output_to_file
 ################################################################################
 
 package Multimedia::SDP::Owner;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -848,6 +816,8 @@ sub address_type
 ################################################################################
 
 package Multimedia::SDP::EmailContact;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -906,6 +876,8 @@ sub name
 ################################################################################
 
 package Multimedia::SDP::PhoneContact;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -964,6 +936,8 @@ sub name
 ################################################################################
 
 package Multimedia::SDP::Connection;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -1076,6 +1050,8 @@ sub total_addresses
 ################################################################################
 
 package Multimedia::SDP::Bandwidth;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -1134,6 +1110,8 @@ sub value
 ################################################################################
 
 package Multimedia::SDP::SessionPlayTime;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -1192,6 +1170,8 @@ sub end_time
 ################################################################################
 
 package Multimedia::SDP::RepeatTime;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -1268,6 +1248,8 @@ sub repeat_offsets
 ################################################################################
 
 package Multimedia::SDP::ZoneAdjustment;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -1326,6 +1308,8 @@ sub offset
 ################################################################################
 
 package Multimedia::SDP::Encryption;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -1384,6 +1368,8 @@ sub key
 ################################################################################
 
 package Multimedia::SDP::Attribute;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -1442,11 +1428,8 @@ sub value
 ################################################################################
 
 package Multimedia::SDP::MediaDescription;
-
-@Multimedia::SDP::MediaBandwidth::ISA  = 'Multimedia::SDP::MediaDescription';
-@Multimedia::SDP::MediaConnection::ISA = 'Multimedia::SDP::MediaDescription';
-@Multimedia::SDP::MediaEncryption::ISA = 'Multimedia::SDP::MediaDescription';
-@Multimedia::SDP::MediaAttribute::ISA  = 'Multimedia::SDP::MediaDescription';
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::SinisterSdp::Utility';
 
 sub new
 {
@@ -1561,6 +1544,68 @@ sub media_information
 	else
 	{
 		return $self->get_media_information;
+	}
+}
+
+
+
+
+
+
+
+################################################################################
+#
+# These similarly-named sub classes behave exactly like their base classes do.
+# 
+# The only difference is that they have different DESTROY methods (defined in
+# SinisterSdp.xs) that ensure they and the MediaDescription objects they belong
+# to get destroyed properly and in the right order:
+#
+################################################################################
+
+package Multimedia::SDP::MediaBandwidth;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::Bandwidth';
+
+package Multimedia::SDP::MediaConnection;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::Connection';
+
+package Multimedia::SDP::MediaEncryption;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::Encryption';
+
+package Multimedia::SDP::MediaAttribute;
+use vars '@ISA';
+@ISA = 'Multimedia::SDP::Attribute';
+
+
+
+
+
+
+
+###############################################################################
+#
+# Routines inherited by each class:
+# 
+###############################################################################
+
+package Multimedia::SDP::SinisterSdp::Utility;
+
+sub last_error
+{
+	my $self = shift;
+
+	return unless $self->error_raised;
+
+	if (wantarray)
+	{
+		return($self->get_last_error_string, $self->get_last_error);
+	}
+	else
+	{
+		return $self->get_last_error_string;
 	}
 }
 

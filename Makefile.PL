@@ -9,7 +9,7 @@ use Text::Wrap;
 use Text::ParseWords;
 
 # the version of the C library we need:
-use constant SINISTERSDP_VERSION_REQUIRED => 0.70;
+use constant SINISTERSDP_VERSION_REQUIRED => 0.80;
 
 
 
@@ -165,16 +165,17 @@ unless (UserHasUpToDateSinisterSdp())
 	);
 
 	# $ make
-	my $make_command  = $make;
-	   $make_command .= " LIBRARY_DESTINATION=$special_lib_directory"
-		if ($special_lib_directory);
-	   $make_command .= " HEADER_DESTINATION=$special_inc_directory"
-		if ($special_inc_directory);
-	$rc = system($make_command);
-	Quit("Couldn't run \"$make\" on the SinisterSdp Makefile: $!") if $rc;
+	$rc = system($make);
+	Quit("Couldn't run \"$make\" on the SinisterSdp Makefile: $!")
+		if ($rc != 0);
 
 	# $ make install:
-	$rc = system("$make install");
+	my $install_command = $make;
+	   $install_command .= " LIBRARY_DESTINATION=$special_lib_directory"
+		if ($special_lib_directory);
+	   $install_command .= " HEADER_DESTINATION=$special_inc_directory"
+		if ($special_inc_directory);
+	$rc = system("$install_command");
 	Quit("Couldn't run \"$make install\" on the SinisterSdp Makefile: $!")
 		if ($rc != 0);
 
@@ -308,7 +309,7 @@ sub UserHasUpToDateSinisterSdp
 	my $version;
 	while (my $line = <HEADER>)
 	{
-		if ($line =~ /#define\s+SDP_SINISTERSDP_VERSION\s+"([\d\.]+)"/)
+		if ($line =~ /#define\s+SINISTERSDP_VERSION\s+"([\d\.]+)"/)
 		{
 			$version = $1;
 			last;

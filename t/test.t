@@ -1,11 +1,23 @@
 use strict;
 use warnings;
+use diagnostics;
 use Test;
 
-BEGIN { plan tests => 22 }
+BEGIN {
+	plan(tests => 24);
 
-use Multimedia::SDP::Parser;
-ok(1);
+	eval {
+		require Multimedia::SDP::Parser;
+		Multimedia::SDP::Parser->import;
+	};
+	ok(!$@);
+
+	eval {
+		require Multimedia::SDP::Generator;
+		Multimedia::SDP::Generator->import;
+	};
+	ok(!$@);
+}
 
 my $parser = new Multimedia::SDP::Parser;
 ok(UNIVERSAL::isa($parser, 'Multimedia::SDP::Parser'));
@@ -49,7 +61,33 @@ ok($description->uri, 'http://search.cpan.org/dist/Multimedia-SDP');
 }
 
 my $start_handler = sub { };
-
 $parser->set_start_handler($start_handler);
-
 ok($parser->get_start_handler == $start_handler);
+
+my $generator = new Multimedia::SDP::Generator;
+
+$generator->v(0);
+$generator->o(
+	'username', 'session_id', 'session.version', 'IN', 'IP4', '127.0.0.1'
+);
+$generator->s('The name of my session');
+$generator->i('A short descrition of my session');
+$generator->u('http://url.to.my.session');
+$generator->e('someone@somewhere', 'Some One');
+$generator->c('IN', 'IP4', '127.0.0.1');
+my $time = time + (60 * 60 * 2); # in two hours
+$generator->t($time);
+$generator->a('recvonly');
+
+my $network_time = $time + 2208988800;
+ok($generator->output, <<END_OF_OUTPUT);
+v=0
+o=username session_id session.version IN IP4 127.0.0.1
+s=The name of my session
+i=A short descrition of my session
+u=http://url.to.my.session
+e=Some One <someone\@somewhere>
+c=IN IP4 127.0.0.1
+t=$network_time 0
+a=recvonly
+END_OF_OUTPUT
